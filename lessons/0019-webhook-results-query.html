@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 19 — من webhook لنتائج: lodash chain و mongoose queries</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 19 · Course sections 12</p>
+  <h1>من webhook لنتائج: lodash chain و mongoose queries</h1>
+  <p class="dek">دابا عندنا أحداث نظيفة داخل <code>req.body</code> — باقي غير نقصو الـ duplicates، ونعلمو الـ survey بالـ vote، وبشكل ما يشدش الـ DB ديالنا فـمئة ديال الرسائل. هاد الدرس هو ديك اللحظة اللي كيتحول فيها الـ webhook لـnumbers حقيقية.</p>
+  <p class="meta">~13 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تكتب <code>updateOne</code> وحدة كتدير البحث و التسجيل كامل من داخل Mongo (<code>$inc</code> + <code>$set</code>)، وكتعرف علاش <code>find</code> + <code>save</code> هي بالضبط اللي ما خاصكش دير. النتيجة: vote واحد لكل شخص، مهما clicka عشر مرات.
+</div>
+
+<h2>1 · من الأحداث القذرة لـchain نظيف</h2>
+<p>قبل ما نلمسو الـ DB، خاصنا ن assureو أن كل <code>event</code> اللي غادي ندخلوه هو <code>surveyId</code> + <code>email</code> + <code>choice</code> صحيحة. الخطوات:<span class="cite"><a href="#n1">[1]</a></span></p>
+<ul>
+  <li><code>_.compact(events)</code> — كيحيّد كل الـ <code>undefined</code> اللي خلا الـ map ملي لقى event ديال نوع <code>bounce</code> ولا URL ماشي ديالنا.</li>
+  <li><code>_.uniqBy(events, 'email' + 'surveyId')</code> — كيحيّد الـ duplicates، ولكن بشرط: نفس الـ email فجوج surveys <strong>مسموح</strong> (user وحيد يصوّت فجوج campaigns)، غير نفس الـ email على نفس الـ survey هو الممنوع.<span class="cite"><a href="#n1">[1]</a></span></li>
+</ul>
+<p>نقطتين فالـ code:</p>
+<ul>
+  <li><strong>خرج <code>const p = new Path(...)</code> من داخل الـ map</strong> — ماشي خاصك تصنع path helper جديد فكل iteration.<span class="cite"><a href="#n2">[2]</a></span></li>
+  <li><strong>عاود جاوب على SendGrid</strong> — إلا ما صيفطتيش response ناجح، الـ SendGrid كيعتبر الـ request فاشل وكيعدّل نفس الـ event مرة من بعد مرة (وهو سبب الـ duplicates اللي كتشوف فالـ logs).<span class="cite"><a href="#n1">[1]</a></span></li>
+</ul>
+<p>ومن بعد، بدّل المتغيرات المؤقتة (<code>events</code>، <code>compactEvents</code>، <code>uniqueEvents</code>) بـسلسلة وحدة:<span class="cite"><a href="#n2">[2]</a></span></p>
+<pre><code>const events = _.chain(req.body)
+  .map(event =&gt; { /* pathname + p.test + return object */ })
+  .compact()
+  .uniqBy('email', 'surveyId')
+  .value();</code></pre>
+<p>الفائدة ماشي غير ديال النظافة: أي مهندس كيقرا السلسلة كيشوف المسار كامل (<code>map</code> &rarr; <code>compact</code> &rarr; <code>uniqBy</code> &rarr; <code>value()</code>) بلا ما يتبع متغيرات وسطية.<span class="cite"><a href="#n2">[2]</a></span></p>
+
+<h2>2 · علاش <code>find</code> + <code>save</code> هي Approach الخايب</h2>
+<p>الكورس عطانا مثال ديال "كيفاش ما تديرش": نجيبو الـ survey كامل، ندورو على الـ recipients بنفرنا فـNode، نبدّلو <code>responded</code>، ومن بعد <code>save()</code> نيشان.<span class="cite"><a href="#n3">[3]</a></span> المشاكل:</p>
+<ul>
+  <li><strong>نقل بيانات بزاف:</strong> كل survey ممكن عندو مئات ولا آلاف الـ recipients — كنجيبوهم كاملين وحنا مهتمين بوحد غير.<span class="cite"><a href="#n3">[3]</a></span></li>
+  <li><strong>نقلهم مرة أخرى:</strong> الـ <code>save()</code> كترجع تسجل الـ survey كامل بما فيه الـ recipients كاملين، يعني نفس النقل ديال البيانات مرة خرا.<span class="cite"><a href="#n3">[3]</a></span></li>
+  <li><strong>البحث على ضو:</strong> كندورو يدويا على array فـNode فبلا ما نخلي Mongo يدير البحث ديالو — والبحث فـMongo بزاف أسرع من نقل البيانات للـ Express ومن بعد تحليلها.<span class="cite"><a href="#n3">[3]</a></span></li>
+</ul>
+<p><strong>القاعدة:</strong> قلّل حجم البيانات اللي كتخرج من الـ DB، وخلي البحث و التسجيل كيتشرّفو كاملين من جيهة Mongo.<span class="cite"><a href="#n3">[3]</a></span></p>
+
+<h2>3 · query وحدة: <code>updateOne</code> + Mongo operators</h2>
+<p>الفكرة: بدل ما نجيبو و نسجلو، نستعملو <code>Survey.updateOne(criteria, update)</code> — الـ object الأول كيقول <strong>شكون</strong>، والتاني كيقول <strong>شنو يبدّل</strong>، والجوج كيتطبّقو من داخل Mongo بلا ما الـ survey يجي لعنّا أصلا.<span class="cite"><a href="#n4">[4]</a></span></p>
+<pre><code>Survey.updateOne(
+  {
+    _id: surveyId,
+    recipients: { $elemMatch: { email, responded: false } }
+  },
+  {
+    $inc: { [choice]: 1 },
+    $set: { 'recipients.$.responded': true, lastResponded: new Date() }
+  }
+).exec();</code></pre>
+<p>نشرح القطعة:</p>
+<ul>
+  <li><strong>ثلاث معايير:</strong> الـ <code>_id</code> خاصو يوافق الـ survey، وخاص يكون عندو recipient بنفس الـ <code>email</code> و <code>responded: false</code>. إلا الـ user صوّت من قبل، الـ criteria ما كتمشيش و كتوقف — وهاد هي الحماية ديال vote واحد.<span class="cite"><a href="#n5">[5]</a></span></li>
+  <li><strong><code>$inc: { [choice]: 1 }</code>:</strong> operator ديال Mongo كيزيد <code>yes</code> ولا <code>no</code> بواحد. الأقواس المربعة <strong>ما كتصنعش array</strong> — هي key interpolation: قيمة <code>choice</code> كتولي هو اسم الـ property وقت التنفيذ.<span class="cite"><a href="#n6">[6]</a></span></li>
+  <li><strong><code>'recipients.$.responded': true</code>:</strong> الـ <code>$</code> كيشير للـ <strong>نفس العنصر</strong> اللي ت matched فـ<code>$elemMatch</code> اللي فوق — يعني غير الـ recipient المعني، ماشي الكل.<span class="cite"><a href="#n6">[6]</a></span></li>
+  <li><strong><code>_id</code> ماشي <code>id</code>:</strong> داخل استفسارات Mongo الخام خاصك <code>_id</code>؛ الـ <code>id</code> الحلوة هي ديال Mongoose اللي كتجلس فوق.<span class="cite"><a href="#n7">[7]</a></span></li>
+  <li><strong><code>.exec()</code>:</strong> الـ query مكتتباش غير كتتركب — خاصك تبعدها للـ DB بـ<code>exec()</code>.<span class="cite"><a href="#n7">[7]</a></span></li>
+</ul>
+<p>ومن بعد نزيدوها فسلسلة ديالنا فـ<code>.each()</code> مع destructuring: <code>.each(({ surveyId, email, choice }) =&gt; { ... })</code>.<span class="cite"><a href="#n7">[7]</a></span></p>
+<div class="callout">
+  <span class="label">Pitfall</span>
+  ما تحطش <code>async/await</code> على هاد الـ query. السبب: حنا مامسهغلينش نجاوبو الـ SendGrid على محتوى — غير نجاوبوه 200 باش يسالي. الـ query كتمشي فالخلفية وحنا كنكملو، ماشي خاصنا نتسناوها قبل ما نجاوبو.<span class="cite"><a href="#n7">[7]</a></span>
+</div>
+
+<h2>4 · التحقق، وآخر جوج تفاصيل</h2>
+<p>الطريقة ديال التحقق: دوز survey جديدة بجوج emails، clicka بزاف مرات على نفس الزر، ومن بعد حل الـ MongoDB UI وتأكد:<span class="cite"><a href="#n8">[8]</a></span></p>
+<ul>
+  <li>رقم الـ votes <strong>واحد غير</strong> على الرغم من المرات الكثيرة اللي clickiti.<span class="cite"><a href="#n8">[8]</a></span></li>
+  <li>غير الـ recipient اللي صوّت عندو <code>responded: true</code>، والباقي <code>false</code>.<span class="cite"><a href="#n8">[8]</a></span></li>
+</ul>
+<p>الملاحظة ديال الـ dashboard كتبان بوحدها: وحدين اللي عندو <code>true</code> هو <code>dev email</code>. باش تعاود تختبر بلا ما تصاوب survey جديد، غير بدّل <code>responded</code> لـ<code>false</code> يدويا وسجّل.<span class="cite"><a href="#n9">[9]</a></span></p>
+<p>وآخر جوج حوايج:<span class="cite"><a href="#n9">[9]</a></span></p>
+<ul>
+  <li>زيد <code>lastResponded: new Date()</code> داخل نفس الـ <code>$set</code> (خاصك تستنى جوج ثواني بعد الـ vote باش تشوفو، وإلا رجع بدّل نفس الـ survey وتستنى survey جديدة).</li>
+  <li>الـ link ديال الـ email دابا كيمشي لـ<code>/api/surveys/:surveyId/:choice</code> — داكشي علاش صفحة الـ thanks كترجع <code>Cannot GET</code>. الحل: route Express بنفس الـ wildcards كيرجع "Thanks for voting".<span class="cite"><a href="#n9">[9]</a></span></li>
+</ul>
+<p>وإلى مشيتي تقلب على كيفاش تكتب استفسارات Mongoose معقدة: <strong>كتب البحث فـGoogle أولا</strong> (كل عملية تقريبا عندها سؤال StackOverflow جاهز)، ومن بعد <strong>جرب الاستفسار فـNode REPL</strong> — حل السيرفر، شغّل <code>node</code>، لصق متطلبات الاتصال ديال الـ models، ومن بعد <code>Survey.find({...}).then(console.log)</code> كيترجع فورا بلا ماتعاود تمشي للسيرفر كل مرة.<span class="cite"><a href="#n10">[10]</a></span></p>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> علاش الـ approach ديال <code>find</code> ثم تعديل ثم <code>save</code> تعتبر خايبة هنا؟</p>
+  <button class="opt">لأنها كتخلق user جديد كل مرة</button>
+  <button class="opt">لأنها كتحتاج async await داخل السلسلة</button>
+  <button class="opt" data-correct>لأنها كتجيب list كامل ديال recipients</button>
+  <button class="opt">لأنها كتستعمل query ديال نوع خاطئ</button>
+  <p class="explain">المشكلة هو النقل: كتجيب الـ survey كامل بما فيه كل الـ recipients (مئات ولا آلاف)، كتبحث بنفرنا فـNode، ومن بعد <code>save()</code> كترجع ترسل نفس القائمة كاملة للـ DB.<span class="cite"><a href="#n3">[3]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> شنو كيدير <code>$</code> داخل <code>'recipients.$.responded'</code>؟</p>
+  <button class="opt" data-correct>كيشير للـrecipient اللي ت matched فـquery</button>
+  <button class="opt">كيزيد العدد ديال yes بقيمة واحد</button>
+  <button class="opt">كيحيد كل الـrecipients من داخل الـsurvey</button>
+  <button class="opt">كيقلب الخاصية responded من false لـtrue</button>
+  <p class="explain">الـ <code>$</code> هي placeholder ديال نفس العنصر اللي لقاه <code>$elemMatch</code> — يعني غير الـ recipient اللي عندو <code>email</code> المطلوب و <code>responded: false</code>.<span class="cite"><a href="#n6">[6]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> شنو كيدير <code>$inc: { [choice]: 1 }</code>؟</p>
+  <button class="opt">كي create array جديد بقيم choice</button>
+  <button class="opt" data-correct>كيزيد yes ولا no بحسب choice</button>
+  <button class="opt">كي set choice لقيمة boolean صح</button>
+  <button class="opt">كيحيد خاصية choice من داخل الـdocument</button>
+  <p class="explain"><code>$inc</code> = increment بـ1. والأقواس المربعة key interpolation: إلا كان <code>choice = 'yes'</code> كتولي <code>{ yes: 1 }</code>، وإلا <code>'no'</code> كتولي <code>{ no: 1 }</code> — ماشي array.<span class="cite"><a href="#n6">[6]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> مراجعة: شحال من مرة تقريبا كيصيفط SendGrid batch ديال الأحداث؟</p>
+  <button class="opt">بعد كل نقرة وحدة فورا مباشرة</button>
+  <button class="opt">كل ساعة وحدة عند كل user</button>
+  <button class="opt">كل 24 ساعة مرة وحدة بالضبط</button>
+  <button class="opt" data-correct>كل 30 ثانية ولا تقريبا دقيقة</button>
+  <p class="explain">الـ SendGrid كيجمع الأحداث وكيصيفط bulk واحد كل شي كاع 30 ثانية ولا دقيقة — داكشي علاش الـ <code>req.body</code> ديالنا array ديال objects.<span class="cite"><a href="#n11">[11]</a></span></p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0007-webhook-results.html">المرجع 0007</a><span>·</span>
+    <a href="../lessons/0018-webhooks-dev-setup.html">الدرس 18</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>0020 — الـ dashboard: جلب و عرض قائمة surveys</strong> (القسم 13، آخر ميزة كبيرة).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>12. Handling Webhook Data/14. Unique Events.vtt</code> (01:06–01:43, 01:53–03:05, 04:11–04:39) — lodash compact + uniqBy by email and survey ID, duplicates from unanswered webhook</li>
+  <li id="n2"><code>12. Handling Webhook Data/15. Lodash Chain Helper.vtt</code> (00:31–01:05, 01:46–02:36, 07:42–10:15) — move Path instance out of map, chain refactor ending in .value(), legibility</li>
+  <li id="n3"><code>12. Handling Webhook Data/16. Bad Mongoose Queries.vtt</code> (01:41–04:44, 04:53–07:11, 07:11–08:43) — fetch survey + recipients, manual loop, save() round trip, minimize data pulled from DB</li>
+  <li id="n4"><code>12. Handling Webhook Data/17. Finding the Exact Survey.vtt</code> (01:47–02:05, 05:26–05:40, 08:23–11:30, 11:45–13:01) — three criteria _id + email + responded false, $elemMatch, updateOne two objects</li>
+  <li id="n5"><code>12. Handling Webhook Data/17. Finding the Exact Survey.vtt</code> (02:46–04:18, 05:42–06:39) — responded false disqualifies already-voted surveys, query executes entirely inside Mongo</li>
+  <li id="n6"><code>12. Handling Webhook Data/18. Updating Records.vtt</code> (01:43–04:28, 04:58–06:52, 07:09–07:52) — $inc operator, key interpolation not an array, $set recipients.$.responded true</li>
+  <li id="n7"><code>12. Handling Webhook Data/19. Executing Queries.vtt</code> (01:23–01:49, 02:44–05:01, 05:09–07:00) — .each step, _id vs id, .exec(), destructuring callback, no async/await for webhooks</li>
+  <li id="n8"><code>12. Handling Webhook Data/20. Testing the Query.vtt</code> (00:10–01:30) — verify in MongoDB UI: one vote despite many clicks, only voted recipient has responded true</li>
+  <li id="n9"><code>12. Handling Webhook Data/21. Odds n' Ends Around Surveys.vtt</code> (00:17–01:52, 02:03–02:39, 02:57–03:36) — lastResponded new Date(), 404 thank-you route fix with wildcards, manual responded false reset tip</li>
+  <li id="n10"><code>12. Handling Webhook Data/22. Mongoose Tips.vtt</code> (00:04–01:27, 01:31–04:24, 04:54–05:47) — search Mongoose/SO first, test queries in node REPL with .then(console.log)</li>
+  <li id="n11"><code>12. Handling Webhook Data/02. Webhooks in Development.vtt</code> (01:21–01:56) — SendGrid bulk request every ~30s or a minute (مراجعة من الدرس 18)</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

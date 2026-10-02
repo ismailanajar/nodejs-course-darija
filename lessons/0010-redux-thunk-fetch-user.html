@@ -33,6 +33,15 @@ export const fetchUser = () => async dispatch => {
   dispatch({ type: FETCH_USER, payload: res.data });
 };</code></pre>
 <p>المسار: الـ نسخة الأولى جات بـ <code>.then()</code> (axios كيرجع promise، ومن بعد dispatch)، ومن بعد refactor لـ <strong>async/await</strong> (نفس منطق الدرس الفات — غير syntax أنظف).<span class="cite"><a href="#n4">[4]</a></span> و تفصيل مهم: الـ payload خاصو يكون <strong><code>res.data</code> غير</strong> — حيت <code>res</code> كامل فيه <code>config</code> و <code>headers</code> و <code>request</code>، والوحيد اللي كيهمنا هو <code>data</code> اللي هو الـ user model.<span class="cite"><a href="#n5">[5]</a></span></p>
+<div class="callout analogy">
+  <span class="label">بأي مثال</span>
+  الـ action العادية بحال ورقة طلب واجدة كتعطيها للكوزينة نيشان. <code>fetchUser</code> بحال طلب خاصو يسول المخزن الأول — <code>Redux Thunk</code> هو اللي كيشد الورقة وكيستنا الجواب ديال المخزن عاد كيدخلها للكوزينة بـ <code>dispatch</code>.
+</div>
+
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  رجعتي <code>res</code> كامل بدل <code>res.data</code>: الـ reducer كيخزن object فيه <code>config</code> و <code>headers</code> و <code>request</code>، والـ header كيعتبرو user ديال بصح — فيظهر زر Logout وهو الـ user ما مسجّلش أصلا. الحل: <code>payload: res.data</code>، غير الـ user model.
+</div>
 
 <h2>2 · <code>fetchUser</code> فـ App: نقطة الدخول</h2>
 <p>واش نناديوها من الـ header؟ هو اللي كيهتم بـ auth أصلا. ولكن حتى هكذا: الـ <strong>App component</strong> هو اللي غادي نمركزو فيه هاد اللوجيك — حيت قريبا غادي يزيدو أماكن خرين كيهتمو واش الـ user مسجّل (routes محمية مثلا)، والـ header ماشي غير هي.<span class="cite"><a href="#n2">[2]</a></span></p>
@@ -49,6 +58,17 @@ class App extends Component {
 
 export default connect(null, actions)(App);</code></pre>
 <p>الربط: <code>connect(null, actions)</code> — الـ argument الأولى <code>null</code> حيت هاد الـ component ما محتاج والو من الـ state دابا، والثانية مجموعة الـ action creators (بالـ <code>import * as actions</code> كندوزو كاملين مرة وحدة).<span class="cite"><a href="#n3">[3]</a></span> ومن بعد تestنا: كيشوف الـ request كتمشي والـ action كتوصل للـ reducer.<span class="cite"><a href="#n3">[3]</a></span></p>
+
+<div class="cycle">
+  <span class="cyc-node">App component</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">dispatch(fetchUser)</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">Redux Thunk</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">GET /api/current_user</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">authReducer</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">state.auth</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">Header re-render</span>
+</div>
+<div class="cycle-return">رجوع للـ Component بـ props جديدة ومن بعد كيتسنى الجواب من جديد</div>
 
 <h2>3 · auth reducer: ثلاث قيم + الـ header</h2>
 <p>هنا أدق جزء: واش نرجعو الـ payload مباشرة؟ المشكل: <strong>الطلب ممكن يتبدل ببطء</strong> (3G مثلا) — وإلا اعتبرنا بـ "ما مسجّلش" افتراضيا، الـ header غادي يورّي login button شوية، ومن بعد يتقلب فجأة لـ logout — وهادي هي الظاهرة اللي كنسميوها content jumping، وشكاية كثيرة ديال mobile web.<span class="cite"><a href="#n5">[5]</a></span></p>
@@ -67,6 +87,11 @@ export default function (state = null, action) {
       return state;
   }
 }</code></pre>
+<ol class="seq">
+  <li><span class="from">App</span> <span class="arrow">→</span> <span class="to">Express</span> <span class="what"><code>componentDidMount</code> كتنادي <code>fetchUser</code> والـ auth باقي <code>null</code></span></li>
+  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">authReducer</span> <span class="what">الجواب وصل خاوي والـ reducer كيرجع <code>false</code> بـ <code>payload || false</code></span></li>
+  <li><span class="from">authReducer</span> <span class="arrow">→</span> <span class="to">Header</span> <span class="what"><code>renderContent</code> كتبين زر <code>Login With Google</code></span></li>
+</ol>
 <p>و فالـ header: <code>connect</code> + <code>mapStateToProps</code> اللي كتاخد الـ state كامل وترجع غير <code>auth</code> (كنستعملو destructuring: <code>({ auth }) =&gt; ({ auth })</code>).<span class="cite"><a href="#n6">[6]</a></span> ومن بعد helper method سميتها <strong><code>renderContent()</code></strong>: switch على <code>this.props.auth</code> — <code>null</code> &rarr; والو (ما نورّيو حتى حاجة باش ما يتقفزش المحتوى)، <code>false</code> &rarr; زر <strong>Login With Google</strong> بـ <code>href="/auth/google"</code>، والـ default (object) &rarr; زر <strong>Logout</strong>.<span class="cite"><a href="#n7">[7]</a></span><span class="cite"><a href="#n6">[6]</a></span></p>
 <p>و باش تشوف الـ state <code>null</code> بعينك: شغّل <strong>network throttling</strong> فـ Chrome DevTools (Network tab &rarr; dropdown ديال الاتصال) — غادي تشوف نص ثانية "still deciding" قبل ما يقرّر.<span class="cite"><a href="#n7">[7]</a></span></p>
 

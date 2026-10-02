@@ -23,13 +23,14 @@
 
 <h2>1 · الفصل: <code>client/</code> جوه dir ديال السيرفر</h2>
 <p>الـ <code>create-react-app</code> صاوب لينا مجلد جديد اسمو <strong><code>client/</code></strong> داخل dir ديال المشروع، وهو اللي كيسكن فيه كامل الـ React side ديال التطبيق.<span class="cite"><a href="#n1">[1]</a></span> المهم تعرف: <strong>الـ React project عندو server خاص بيه</strong> — كيتفتح بـ <code>npm start</code> من داخل <code>client/</code>، وكيرفع التطبيق على <code>localhost:3000</code>.<span class="cite"><a href="#n1">[1]</a></span></p>
-<p>هادي هي النقطة اللي كتقلب كلشي: من دابا عندنا <strong>جوج servers فـ development</strong> — الـ React server (اللي كي bundle الـ components بـ Webpack و Babel ويخرج ملف <code>bundle.js</code> للـ browser)، و الـ Express server (اللي كيخرج غير JSON و data).<span class="cite"><a href="#n1">[1]</a></span> علاش نستحملو جوج؟ حيت <strong>Create React App هو أحسن طريق</strong> باش نبداو: كامل الـ config ديال Webpack و Babel و loaders كيجي مصاوب من التّلا، وتوفير هادا يستاهل الـ extra setup ديال الفصل.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>الخلاصة: ولّى عندنا <strong>جوج servers فـ development</strong> — الـ React server اللي كيجمع الـ components بـ Webpack و Babel ويخرج <code>bundle.js</code> للـ browser، والـ Express server اللي كيرجع غير JSON و data.<span class="cite"><a href="#n1">[1]</a></span> علاش قابيلين هاد التعقيد؟ حيت <strong>Create React App كيجيب config واجد</strong> ديال Webpack و Babel و loaders، والربح ديال الوقت كيستاهل خدمة الفصل هادي. علاش هادي مهمة ملي تخدم لـclient: حيت أي مشروع freelance عصري مفصول هكذا، والـ client كيتوقع منك تشرح ليه فين كاينة الـ frontend وفين كاينة الـ backend.<span class="cite"><a href="#n1">[1]</a></span></p>
 <div class="stack">
-  <div class="stack-layer"><b>Browser</b><span>كيرجّع domain اللي راه فيه — <code>localhost:3000</code> — على كل relative link<span class="cite"><a href="#n4">[4]</a></span></span></div>
-  <div class="stack-layer"><b>React server</b><span><code>localhost:3000</code> — CRA، Webpack، Babel، و الـ proxy اللي كيحوّل الـ requests اللي ما عرفش</span></div>
-  <div class="stack-layer"><b>Express</b><span><code>localhost:5000</code> — <code>/api</code> و <code>/auth/google</code></span></div>
-  <div class="stack-layer"><b>MongoDB</b><span>الـ data ديال users والـ surveys</span></div>
+  <div class="stack-layer"><b>Browser</b><span>الدور ديالو: كيلصق <code>localhost:3000</code> على كل relative link بحال <code>/auth/google</code><span class="cite"><a href="#n4">[4]</a></span></span></div>
+  <div class="stack-layer"><b>React server</b><span>الدور ديالو: كيقدّم <code>bundle.js</code> بـ Webpack و Babel، والـ proxy كيحوّل <code>/api</code> للسيرفر</span></div>
+  <div class="stack-layer"><b>Express</b><span>الدور ديالو: كيجاوب بـ JSON على <code>/api</code> و <code>/auth/google</code> فوق <code>localhost:5000</code></span></div>
+  <div class="stack-layer"><b>MongoDB</b><span>الدور ديالها: تخزين collections ديال users والـ surveys</span></div>
 </div>
+<p class="mono">كيفاش تقرا هاد المخطط: قرا الطبقات من الفوق للتحت — كل طبقة الدور ديالها مكتوب، واللي لتحت كتخدم اللي لفوق.</p>
 <p>وإلا كنتي كتمشي بالطريقة الساهلة: عندك zip ديال starter boilerplate — نزّلو و extraiه فـ <strong>dir ديال السيرفر الموجود</strong>، والنتيجة خاصها تكون:</p>
 <pre dir="ltr"><code>server/
   client/
@@ -53,15 +54,12 @@ npm run dev                        # جوج فنفس terminal</code></pre>
 <h2>3 · الـ stumbling block ديال relative links</h2>
 <p>السيرفر خدامين مع بعضياتهم — حتى مشاو للـ OAuth. الـ مشكل: أي <strong>relative link</strong> (بحال <code>/auth/google</code>) الـ browser كي <strong>prepend</strong> عليه domain اللي راه فيه دابا، وهو <code>localhost:3000</code> (الـ React server) — ماشي <code>localhost:5000</code> (الـ Express).<span class="cite"><a href="#n4">[4]</a></span> والنتيجة: Google كيشوف بلي باغيين نرجّعو الـ user لـ <code>localhost:3000/auth/google/callback</code> وهو ما مسجلش عندو — <strong>redirect_uri mismatch</strong>.<span class="cite"><a href="#n4">[4]</a></span></p>
 <p>الحل ديال الكورس هو <strong>proxy</strong>: قاعدة كتقول للـ React server "أي طلب ما عرفتوش، حوّلو للـ backend على <code>localhost:5000</code>" — وهكذا <code>/auth/google</code> كتوصل للـ Express وكيمشي معاه الطريق الصحيح.<span class="cite"><a href="#n5">[5]</a></span></p>
-<div class="flow">
-  <div class="flow-row">
-    <div class="flow-node">browser<small>localhost:3000</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">React dev server<small>غير ما تعرفش &rarr; proxy</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">Express<small>localhost:5000</small></div>
-  </div>
-</div>
+<ol class="seq">
+  <li><span class="from">Browser</span> <span class="arrow">→</span> <span class="to">React server</span> <span class="what">طلب <code>/auth/google</code> ملصوق عليه <code>localhost:3000</code></span></li>
+  <li><span class="from">React server</span> <span class="arrow">→</span> <span class="to">Express</span> <span class="what"><code>setupProxy.js</code> كيحوّل الطلب لـ <code>http://localhost:5000</code> بنفس الـ path</span></li>
+  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">Google</span> <span class="what">redirect ديال OAuth بالـ callback الصحيح <code>/auth/google/callback</code></span></li>
+</ol>
+<p class="mono">كيفاش تقرا هاد المخطط: تبع الأرقام بالترتيب — كل سطر كيقول شكون صيفط لشكون وشنو داز فالطلب.</p>
 <p>و زيادة على ذلك: خاصك تزيد <strong>redirect URI ديال dev</strong> — <code>http://localhost:3000/auth/google/callback</code> — فـ authorized redirect URIs ديال Google console. الكورس كيأكّد: <strong>غير فـ development</strong> بغيتي نرتاحو شوية، أما الإعداد ديال production كيبقى super secure وما يتبدلش.<span class="cite"><a href="#n5">[5]</a></span></p>
 
 <h2>4 · CRA تبدّل: <code>setupProxy.js</code></h2>

@@ -12,13 +12,13 @@
 <header class="masthead">
   <p class="kicker">الدرس 16 · الكورس section 11</p>
   <h1>الـ validation و الـ wizard ديال form</h1>
-  <p class="dek">فورم بلا validation = سيرفر كيرفض الإرسال فالأخير؛ وفورم بلا مراجعة = user متوتر. غادي نديرو validation عمومي + صفحات form &rarr; review بقيم كيبقاو.</p>
+  <p class="dek">فورم بلا validation = سيرفر كيرفض الإرسال فالأخير؛ وفورم بلا مراجعة = user متوتر. غادي نديرو validation عمومي + صفحات form → review بقيم كيبقاو.</p>
   <p class="meta">~14 دقايق · Quiz ديال retrieval فالأخر</p>
 </header>
 
 <div class="callout">
   <span class="label">Win ديال هاد الدرس</span>
-  غادي تصاوب <strong>validation وحدة</strong> كتخدم مع أي حقل (<code>validate(values)</code> كترجع <code>errors</code> object)، و<strong>wizard</strong> ديال <code>SurveyForm &rarr; SurveyFormReview</code> بزر الرجوع اللي كيحافظ على الـ values. هادي هي الصورة اللي كيطلبها client: الفورم ما كيتحرّكش للخطوة الجاية وإلا كان شي حاجة خايبة.
+  غادي تصاوب <strong>validation وحدة</strong> كتخدم مع أي حقل (<code>validate(values)</code> كترجع <code>errors</code> object)،   و<strong>wizard</strong> ديال <code>SurveyForm → SurveyFormReview</code> بزر الرجوع اللي كيحافظ على الـ values. هادي هي الصورة اللي كيطلبها client: الفورم ما كيتحرّكش للخطوة الجاية وإلا كان شي حاجة خايبة.
 </div>
 
 <h2>1 · الأول: الفورم خاصو يبان محترم</h2>
@@ -34,35 +34,26 @@
 }</code></pre>
 <p>القاعدة: <strong>إلا كان الـ <code>errors</code> فارغ، الـ form صحيحة وكتمشي للإرسال</strong>; وإلا كان فيه شي property، Redux Form كيوقّف الـ submission وكيعرف بلي شي حاجة ناقصة.<span class="cite"><a href="#n2">[2]</a></span></p>
 <div class="compare">
-  <div class="col-good"><span class="tag">errors فارغ</span>الـ form صحيحة وكتمشي للإرسال وما كيبان حتى خطأ تحت الحقول.</div>
-  <div class="col-bad"><span class="tag">errors فيه key</span>Redux Form كيوقف الـ submit والـ SurveyField كتوري الرسالة تحت الحقل.</div>
+  <div class="col-good"><span class="tag">errors فارغ</span><code>validate(values)</code> رجعات <code>errors = {}</code> — الـ form كتمشي لـ <code>onSurveySubmit</code> وما كيبان والو.</div>
+  <div class="col-bad"><span class="tag">errors فيه key</span><code>errors.title = 'You must provide a title'</code> — الـ submit كيحبس و<code>SurveyField</code> كتوري <code>meta.error</code> ملي <code>meta.touched</code> بـ <code>red-text</code>.</div>
 </div>
+<p class="mono">كيفاش تقرا هاد المخطط: قارن الحالتين — شوف شنو رجعات validate وشنو وقع للـ submit من بعد.</p>
 <p>الربط بين الـ error والـ حقل كيوقع بالـ <strong>اسم</strong>: الـ key ديال الـ error خاصو يتطابق مع الـ <code>name</code> ديال الـ <code>Field</code>، ومن بعد كتاخد <code>meta.error</code> و <code>meta.touched</code> داخل <code>SurveyField</code> باش توري الرسالة تحت الحقل.<span class="cite"><a href="#n3">[3]</a></span> الـ تصليح ديال الرسالة: <code>&lt;div class="red-text"&gt;</code> مع <code>margin-bottom: 20px</code>.<span class="cite"><a href="#n3">[3]</a></span></p>
 
 <h2>3 · تحقق من الـ recipients: split و regex</h2>
-<p>الـ حقل ديال <strong>Recipient List</strong> ماشي email وحدة — رسالة مفصولة بفواصل. فالـ <code>validate</code>: كنشكو الـ string بـ <code>split</code>، كنمشطو كل عنصر (<code>trim</code>)، ومن بعد كنفلترو اللي ما كيجيش صحيح بـ <strong>regex</strong> ديال الـ email ونحيدو من الـ <code>errors</code>.<span class="cite"><a href="#n4">[4]</a></span></p>
-<div class="flow">
-  <div class="flow-row">
-    <div class="flow-node">string<small>"a@b.com, c@d.com"</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">split<small>فقرات</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">trim<small>تنظيف</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">regex filter<small>الصالح / المرفوض</small></div>
-  </div>
-</div>
+<p>الـ <strong>Recipient List</strong> ماشي email وحدة — هي string طويلة فيها فواصل بحال <code>a@b.com, c@d.com</code>. الخدمة فـ <code>validate</code> كتمشي بثلاثة خطوات صغار: <code>split(',')</code> باش تولي list، و<code>trim()</code> باش تحيد الفراغات، ومن بعد <code>regex</code> ديال الـ email باش تحبس اللي خاسر وتزيدو فـ <code>errors.emails</code>. علاش هادي مهمة ملي تخدم لـ client: حيت الـ client كيلصق list طويلة من Excel، والـ form خاصها تقول ليه بالضبط شكون خاسر بلا ما تضيع ليه اللي صحيح.<span class="cite"><a href="#n4">[4]</a></span></p>
 <p>ملاحظة عملية: الـ regex اللي فيه escape chars كيوقّف ESLint ديال Create React App بـ warning. الحل اللي جاب الكورس: تستعمل الـ HTML5 validation regex من <code>emailregex.com</code> اللي ما عندوش نفس المشكل.<span class="cite"><a href="#n4">[4]</a></span></p>
 
-<h2>4 · الـ wizard: form &rarr; review بقيم كيبقاو</h2>
+<h2>4 · الـ wizard: form → review بقيم كيبقاو</h2>
 <p>القرار: <strong>component-level state</strong> داخل <code>SurveyNew</code> سميت <code>showFormReview</code> (كتبدا بـ <code>false</code>). الـ component عنده <code>renderContent()</code>: إلا <code>true</code> كيرجع <code>SurveyFormReview</code> (functional component)، وإلا لا كيرجع <code>SurveyForm</code>.<span class="cite"><a href="#n5">[5]</a></span></p>
 <p>التبديل كيوقع بـ callback: <code>onSurveySubmit</code> كتديرو لـ <code>SurveyForm</code> فـ <code>handleSubmit</code>، والـ body ديالو كينادي <code>this.setState({ showFormReview: true })</code>. تنبيه مهم: كتعطيه <strong>المرجع بلا قوسين</strong> — إلا حطّيتي <code>()</code> كينادى مباشرة فـ render.<span class="cite"><a href="#n5">[5]</a></span> وفالجانب الآخر، <code>onCancel</code> كيرجع <code>showFormReview</code> لـ <code>false</code>.<span class="cite"><a href="#n6">[6]</a></span></p>
 <ol class="steps">
-  <li><b>البداية: SurveyForm</b><code>showFormReview</code> كيبدا بـ <code>false</code>، و<code>renderContent()</code> كيرجع الـ form.</li>
-  <li><b>next كيقلب الواجهة</b><code>onSurveySubmit</code> (بلا قوسين) كينادي <code>setState({ showFormReview: true })</code>.</li>
-  <li><b>SurveyFormReview</b> كيتشاف بدل الـ form — نفس الـ <code>SurveyNew</code> غير كيرجع content آخر.</li>
-  <li><b>cancel كيرجع للور</b><code>onCancel</code> كيرجع <code>showFormReview</code> لـ <code>false</code> والقيم مازالين حاضرين.</li>
+  <li><b>البداية: SurveyForm</b><code>SurveyNew</code> فيه <code>showFormReview: false</code> و<code>renderContent()</code> كيرجع <code>&lt;SurveyForm&gt;</code>.</li>
+  <li><b>next كيقلب الواجهة</b><code>onSurveySubmit</code> بلا <code>()</code> كيدخل فـ <code>handleSubmit</code> وكينادي <code>setState({ showFormReview: true })</code>.</li>
+  <li><b>SurveyFormReview</b><code>renderContent()</code> كيرجع <code>&lt;SurveyFormReview&gt;</code> وكيقرا <code>state.form.surveyForm.values</code> بـ <code>formValues</code>.</li>
+  <li><b>cancel كيرجع للور</b><code>onCancel</code> كيرجع <code>showFormReview</code> لـ <code>false</code> والقيم باقين بـ <code>destroyOnUnmount: false</code>.</li>
 </ol>
+<p class="mono">كيفاش تقرا هاد المخطط: قرا الخطوات بالترتيب — كل خطوة فيها شنو كيرجع render وشنو وقع للـ state.</p>
 <p>باش الـ values ما تتمسحش ملي كتمشي من <code>SurveyForm</code> للـ review، كنزيدو <code>destroyOnUnmount: false</code> — لأن Redux Form <strong>كترمي القيم ملي الـ component يunmount</strong>، وهادي default عندها.<span class="cite"><a href="#n7">[7]</a></span> أما شكون كيقرا القيم فالـ review: <code>connect</code> و <code>mapStateToProps</code> كيرجعو <code>state.form.surveyForm.values</code> كـ prop اسمو <code>formValues</code>.<span class="cite"><a href="#n7">[7]</a></span></p>
 <div class="callout pitfall">
   <span class="label">نتيجة كتجي غلط</span>

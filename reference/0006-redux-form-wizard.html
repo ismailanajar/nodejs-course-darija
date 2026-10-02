@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference 0006 — Redux Form Wizard: Config &rarr; Validation &rarr; POST</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">Reference · 0006 · Cheatsheet</p>
+  <h1>Redux Form Wizard: Config &rarr; Validation &rarr; POST</h1>
+  <p class="dek">المسار كامل ديال الـ survey form فورقة وحدة: من <code>reduxForm()</code> حتى <code>history.push</code>.</p>
+  <p class="meta">Compressed from course section 11 · Print this page</p>
+</header>
+
+<h2>1 · تشريح <code>reduxForm({ ... })</code></h2>
+<table dir="ltr">
+  <tr><th>Option</th><th>Role</th></tr>
+  <tr><td><code>form: 'surveyForm'</code></td><td>Namespaces the values as <code>state.form.surveyForm</code> in the form reducer (one key per form, so many forms never collide).</td></tr>
+  <tr><td><code>validate: fn</code></td><td>Runs on every submit attempt; empty <code>errors</code> object = valid.</td></tr>
+  <tr><td><code>destroyOnUnmount: false</code></td><td>Keep values when this component unmounts (default is <code>true</code>, values get dumped).</td></tr>
+</table>
+<pre dir="ltr"><code>export default reduxForm({
+  form: 'surveyForm',
+  validate,
+  destroyOnUnmount: false
+})(SurveyForm);</code></pre>
+
+<h2>2 · <code>&lt;Field&gt;</code> و الـ custom component</h2>
+<table dir="ltr">
+  <tr><th>Prop</th><th>From</th><th>Contains</th></tr>
+  <tr><td><code>name</code></td><td>you</td><td>Key in the values object + key that matches <code>errors</code>.</td></tr>
+  <tr><td><code>label</code></td><td>you</td><td>Plain prop, rendered inside the custom component (not hardcoded).</td></tr>
+  <tr><td><code>component={SurveyField}</code></td><td>you</td><td>Replaces the default input with your component.</td></tr>
+  <tr><td><code>input</code></td><td>redux-form</td><td><code>name</code>, <code>value</code>, <code>onChange</code>, … spread it on your input.</td></tr>
+  <tr><td><code>meta</code></td><td>redux-form</td><td><code>error</code>, <code>touched</code> — drive inline error display.</td></tr>
+</table>
+
+<h2>3 · config array (DRY)</h2>
+<pre dir="ltr"><code>const FIELDS = [
+  { label: 'Survey Title',   name: 'title' },
+  { label: 'Subject Line',   name: 'subject' },
+  { label: 'Email Body',     name: 'body' },
+  { label: 'Recipient List', name: 'recipients' }
+];
+
+renderFields() {
+  return _.map(FIELDS, ({ label, name }) =&gt; (
+    &lt;Field key={name} component={SurveyField} label={label} name={name} type="text" /&gt;
+  ));
+}</code></pre>
+<ul>
+  <li><code>FIELDS</code> lives above the component; <code>key</code> = <code>name</code> (unique + consistent).</li>
+  <li>Same array imported by <code>SurveyFormReview</code> for the review screen — one source of truth.</li>
+  <li>Add a field = one line in the array.</li>
+</ul>
+
+<h2>4 · validation function</h2>
+<pre dir="ltr"><code>function validate(values) {
+  const errors = {};
+  if (!values.title)    errors.title = 'You must provide a title';
+  if (!validEmails(values.recipients)) errors.recipients = 'Invalid email in list';
+  return errors;
+}</code></pre>
+<ul>
+  <li>Signature: <code>values &rarr; errors</code>. Empty object &rarr; submit proceeds; any key &rarr; submit blocked.</li>
+  <li>Error key <strong>must equal</strong> the field <code>name</code>; show it via <code>meta.error</code> + <code>meta.touched</code> inside the field component.</li>
+  <li>Email list: <code>split(',') &rarr; trim &rarr; regex filter</code>; use the HTML5 regex from emailregex.com (CRA linter warns on escaped patterns).</li>
+  <li>Error markup: <code>&lt;div class="red-text"&gt;</code> with <code>margin-bottom: 20px</code>.</li>
+</ul>
+
+<h2>5 · الـ wizard flow</h2>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">SurveyNew<small>state.showFormReview = false</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">SurveyForm<small>onSurveySubmit &rarr; true</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">SurveyFormReview<small>onCancel &rarr; false</small></div>
+  </div>
+</div>
+<table dir="ltr">
+  <tr><th>Component</th><th>Job</th></tr>
+  <tr><td><code>SurveyNew</code></td><td>Container: <code>renderContent()</code> picks form vs review; owns component-level state.</td></tr>
+  <tr><td><code>SurveyForm</code></td><td>Fields + <code>handleSubmit</code>; receives the <code>onSurveySubmit</code> callback <em>without parentheses</em>.</td></tr>
+  <tr><td><code>SurveyFormReview</code></td><td>Functional; connected to read <code>formValues</code>; cancel + send buttons.</td></tr>
+</table>
+
+<h2>6 · persistence rules (متى القيم تبقاو)</h2>
+<table dir="ltr">
+  <tr><th>Scenario</th><th>Setting</th><th>Result</th></tr>
+  <tr><td>Toggle form &rarr; review &rarr; form</td><td><code>SurveyForm: destroyOnUnmount: false</code></td><td>Values survive the toggle.</td></tr>
+  <tr><td>User leaves <code>SurveyNew</code> (cancel / header link)</td><td><code>SurveyNew</code> bound to the <em>same</em> <code>form: 'surveyForm'</code> with default destroy</td><td>Redux Form dumps everything — no extra cancel handler needed.</td></tr>
+  <tr><td>Read values in the review</td><td><code>mapStateToProps</code></td><td><code>state.form.surveyForm.values &rarr; formValues</code> prop.</td></tr>
+</table>
+
+<h2>7 · الـ submit pipeline</h2>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">formValues<small>onClick arrow fn</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">axios.post<small>/api/surveys</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">dispatch<small>fetch_user + res.data</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">history.push<small>/surveys</small></div>
+  </div>
+</div>
+<pre dir="ltr"><code>export const submitSurvey = (values, history) =&gt; async dispatch =&gt; {
+  const res = await axios.post('/api/surveys', values);
+  dispatch({ type: 'fetch_user', payload: res.data });  // refreshed credits
+  history.push('/surveys');                              // programmatic redirect
+};
+
+// SurveyFormReview
+export default connect(mapStateToProps, actions)(withRouter(SurveyFormReview));</code></pre>
+<ul>
+  <li><code>onClick={() =&gt; submitSurvey(formValues, history)}</code> — wrapping prevents instant execution at render.</li>
+  <li><code>withRouter(SurveyFormReview)</code> (plain function call, unlike <code>connect(...)(...)</code>) puts <code>history</code> on props; newer react-router requires this hop.</li>
+  <li>Backend contract: request body key is <code>recipients</code> — keep client field names aligned.</li>
+</ul>
+
+<h2 id="sources">Sources</h2>
+<ol style="font-size:0.85rem" dir="ltr">
+  <li id="src1">Course lecture 11.13 · <em>Fields from Config</em> (00:24–01:24, 03:12–04:02, 06:36–07:07) — <code>11. Back to the Client!/13. Fields from Config.vtt</code></li>
+  <li id="src2">Course lecture 11.15 · <em>Form Validation</em> (01:16–04:00) — <code>11. Back to the Client!/15. Form Validation.vtt</code></li>
+  <li id="src3">Course lecture 11.16–17 · <em>Showing Validation Errors</em> + <em>Generalizing Field Validation</em> — <code>16. Showing Validation Errors.vtt</code>, <code>17. Generalizing Field Validation.vtt</code></li>
+  <li id="src4">Course lecture 11.18–20 · <em>Validating Emails</em> / <em>Displaying Invalid Emails</em> / <em>Toggling Visibility</em> — <code>18. Validating Emails.vtt</code>, <code>19. Displaying Invalid Emails.vtt</code>, <code>20. Toggling Visibility.vtt</code></li>
+  <li id="src5">Course lecture 11.21 · <em>Advancing From SurveyForm</em> (00:14–00:29, 07:05–10:26) — <code>11. Back to the Client!/21. Advancing From SurveyForm.vtt</code></li>
+  <li id="src6">Course lecture 11.23 · <em>Persisting Form Values</em> (02:04–02:59, 07:15–10:07) — <code>11. Back to the Client!/23. Persisting Form Values.vtt</code></li>
+  <li id="src7">Course lecture 11.27 · <em>Dumping Form Values</em> (01:19–06:37) — <code>11. Back to the Client!/27. Dumping Form Values.vtt</code></li>
+  <li id="src8">Course lecture 11.26 · <em>Outstanding Form Work</em> (03:30–07:50) — <code>11. Back to the Client!/26. Outstanding Form Work.vtt</code></li>
+  <li id="src9">Course lecture 11.28–30 · <em>Fixing Property Names</em> / <em>Posting to Surveys</em> / <em>Redirect on Submit</em> — <code>28. Fixing Property Names.vtt</code>, <code>29. Posting to Surveys.vtt</code>, <code>30. Redirect on Submit.vtt</code></li>
+</ol>
+
+<p class="nav-links"><a href="../lessons/0015-redux-form-survey.html">&larr; الدرس 15</a><span>·</span><a href="../lessons/0016-form-validation-wizard.html">الدرس 16</a><span>·</span><a href="../lessons/0017-post-survey-redirect.html">الدرس 17</a><span>·</span><a href="../MISSION.md">المهمة</a></p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 10 — Redux Thunk و fetchUser: جلب currentUser و redirects</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 10 · Course sections 07</p>
+  <h1>Redux Thunk و fetchUser: جلب currentUser و redirects</h1>
+  <p class="dek">أول API call من الـ client: <code>fetchUser</code> كتمشي لـ <code>/api/current_user</code>، الـ reducer كيرجع <code>null / false / user model</code>، والـ header كيتبدّل — وعقب التسجيل كنوجدو redirect ديال بصح.</p>
+  <p class="meta">~12 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تفهم <strong>علاش Redux Thunk</strong> كيسمح للـ action creators يرجّعو functions، وتكتب <strong><code>fetchUser</code></strong> بـ async/await، وتقرأ دورة الـ <strong>three auth states</strong> (null/false/user) من reducer حتى للـ header، وتعرف الفرق بين <strong>redirect ديال login و logout</strong>.
+</div>
+
+<h2>1 · Redux Thunk: كسر قانون الـ action</h2>
+<p>القانون ديال Vanilla Redux: كل action creator خاصو <strong>يرجع action بشكل فوري</strong> — object فيه <code>type</code> وعمليا <code>payload</code>. ولكن <code>fetchUser</code> باغية تسنى الجواب ديال الـ API قبل ما تدير dispatch — مستحيل ترجع action وهي مازال ما جاتش.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>هنا كيدخل <strong>Redux Thunk</strong>: middleware ربطناه فـ <code>src/index.js</code>، وشغله وحد: كيinspect القيمة اللي كيرجع بها الـ action creator — <strong>إلا كانت function، كيناديها وحده ويدوز ليها <code>dispatch</code></strong> كأول argument.<span class="cite"><a href="#n1">[1]</a></span> و الـ <code>dispatch</code> هادي هي نفس "الـ funnel" اللي كتلقى أي action وكتصاوبها لكل reducers فـ التطبيق.<span class="cite"><a href="#n1">[1]</a></span></p>
+<pre dir="ltr"><code>// src/actions/index.js — النتيجة النهائية بعد refactors
+import axios from 'axios';
+import { FETCH_USER } from './types';
+
+export const fetchUser = () => async dispatch => {
+  const res = await axios.get('/api/current_user');
+  dispatch({ type: FETCH_USER, payload: res.data });
+};</code></pre>
+<p>المسار: الـ نسخة الأولى جات بـ <code>.then()</code> (axios كيرجع promise، ومن بعد dispatch)، ومن بعد refactor لـ <strong>async/await</strong> (نفس منطق الدرس الفات — غير syntax أنظف).<span class="cite"><a href="#n4">[4]</a></span> و تفصيل مهم: الـ payload خاصو يكون <strong><code>res.data</code> غير</strong> — حيت <code>res</code> كامل فيه <code>config</code> و <code>headers</code> و <code>request</code>، والوحيد اللي كيهمنا هو <code>data</code> اللي هو الـ user model.<span class="cite"><a href="#n5">[5]</a></span></p>
+
+<h2>2 · <code>fetchUser</code> فـ App: نقطة الدخول</h2>
+<p>واش نناديوها من الـ header؟ هو اللي كيهتم بـ auth أصلا. ولكن حتى هكذا: الـ <strong>App component</strong> هو اللي غادي نمركزو فيه هاد اللوجيك — حيت قريبا غادي يزيدو أماكن خرين كيهتمو واش الـ user مسجّل (routes محمية مثلا)، والـ header ماشي غير هي.<span class="cite"><a href="#n2">[2]</a></span></p>
+<p>و باش نناديوها <strong>مرة وحدة أول ما التطبيق ي boot</strong>، خاصنا lifecycle method — علّاش نبدّلو الـ App من functional component لـ <strong>class component</strong>، ومن بعد نستعملو <strong><code>componentDidMount()</code></strong>: كتندعا أول ما الـ component يتعرض للشاشة.<span class="cite"><a href="#n2">[2]</a></span> علاش ماشي <code>componentWillMount</code>؟ جوج أسباب: (1) فـ إصدارات React الجاية ممكن يتندعا بزاف مرات، و convention كتعتبر <code>componentDidMount</code> المكان المفضل لكل initial Ajax request؛ (2) الفرق ديال التوقيت بيناتهم <strong>شبه معدوم</strong>.<span class="cite"><a href="#n2">[2]</a></span></p>
+<pre dir="ltr"><code>import { connect } from 'react-redux';
+import * as actions from '../actions';
+
+class App extends Component {
+  componentDidMount() {
+    this.props.fetchUser();
+  }
+  render() { /* routes... */ }
+}
+
+export default connect(null, actions)(App);</code></pre>
+<p>الربط: <code>connect(null, actions)</code> — الـ argument الأولى <code>null</code> حيت هاد الـ component ما محتاج والو من الـ state دابا، والثانية مجموعة الـ action creators (بالـ <code>import * as actions</code> كندوزو كاملين مرة وحدة).<span class="cite"><a href="#n3">[3]</a></span> ومن بعد تestنا: كيشوف الـ request كتمشي والـ action كتوصل للـ reducer.<span class="cite"><a href="#n3">[3]</a></span></p>
+
+<h2>3 · auth reducer: ثلاث قيم + الـ header</h2>
+<p>هنا أدق جزء: واش نرجعو الـ payload مباشرة؟ المشكل: <strong>الطلب ممكن يتبدل ببطء</strong> (3G مثلا) — وإلا اعتبرنا بـ "ما مسجّلش" افتراضيا، الـ header غادي يورّي login button شوية، ومن بعد يتقلب فجأة لـ logout — وهادي هي الظاهرة اللي كنسميوها content jumping، وشكاية كثيرة ديال mobile web.<span class="cite"><a href="#n5">[5]</a></span></p>
+<p>الحل: ثلاث قيم واضحة كيرجع بها الـ <code>authReducer</code>:</p>
+<ul>
+  <li><strong><code>null</code></strong> — الـ request مازال جاي، <strong>ما عرفنا والو</strong> (القيمة الافتراضية فبداية التطبيق).<span class="cite"><a href="#n5">[5]</a></span></li>
+  <li><strong>الـ user model</strong> — الـ request كمل والـ user مسجّل.<span class="cite"><a href="#n5">[5]</a></span></li>
+  <li><strong><code>false</code></strong> — الـ request كمل وما مسجّلش (السيرفر كيرجع string خاوي، وعلّاش نبدلوه لـ <code>false</code> بـ <code>action.payload || false</code>).<span class="cite"><a href="#n5">[5]</a></span></li>
+</ul>
+<pre dir="ltr"><code>// src/reducers/authReducer.js
+export default function (state = null, action) {
+  switch (action.type) {
+    case FETCH_USER:
+      return action.payload || false;
+    default:
+      return state;
+  }
+}</code></pre>
+<p>و فالـ header: <code>connect</code> + <code>mapStateToProps</code> اللي كتاخد الـ state كامل وترجع غير <code>auth</code> (كنستعملو destructuring: <code>({ auth }) =&gt; ({ auth })</code>).<span class="cite"><a href="#n6">[6]</a></span> ومن بعد helper method سميتها <strong><code>renderContent()</code></strong>: switch على <code>this.props.auth</code> — <code>null</code> &rarr; والو (ما نورّيو حتى حاجة باش ما يتقفزش المحتوى)، <code>false</code> &rarr; زر <strong>Login With Google</strong> بـ <code>href="/auth/google"</code>، والـ default (object) &rarr; زر <strong>Logout</strong>.<span class="cite"><a href="#n7">[7]</a></span><span class="cite"><a href="#n6">[6]</a></span></p>
+<p>و باش تشوف الـ state <code>null</code> بعينك: شغّل <strong>network throttling</strong> فـ Chrome DevTools (Network tab &rarr; dropdown ديال الاتصال) — غادي تشوف نص ثانية "still deciding" قبل ما يقرّر.<span class="cite"><a href="#n7">[7]</a></span></p>
+
+<h2>4 · redirects: login، logout، والـ logo</h2>
+<p><strong>بعد login:</strong> كتمشي لـ OAuth flow وترجع لـ <code>/auth/google/callback</code> — ولكن كطلعت error! السبب: <code>passport.authenticate</code> middleware كتخدم و كتسالي، وماعندناش <strong>route handler من بعد</strong>، فـ Express كيقول "ما عندي ما ندير". الحل: نزيدو handler ثانٍ:<span class="cite"><a href="#n8">[8]</a></span></p>
+<pre dir="ltr"><code>// routes/auth.js
+router.get(
+  '/auth/google/callback',
+  passport.authenticate('google'),
+  (req, res) => res.redirect('/surveys')
+);</code></pre>
+<p><strong>بعد logout:</strong> جوج طرق ممكنين: Ajax request (أسرع، ولكن خاص action creator + reducer update + redirect يدويا) ولا <strong>anchor عادي بـ <code>href="/api/logout"</code></strong> (full browser request — الأبسط بزاف، والكورس اختارها: ملي الـ user بغا يخرج، ما عادش عندنا معاه شغل).<span class="cite"><a href="#n9">[9]</a></span> والسيرفر تبدّل هو زادة: ما عادش كيرجع user model، بدل <code>res.redirect('/')</code> باش الـ user يرجع للـ landing.<span class="cite"><a href="#n9">[9]</a></span></p>
+<p><strong>اللمسة الأخيرة:</strong> الـ Landing component خرج من dummy لـ <code>components/Landing.js</code> (functional component بـ <code>h1</code> + نص ديال marketing + <code>style={{ textAlign: 'center' }}</code> — جوج curly braces: وحدة للـ JavaScript ووحدة للـ object).<span class="cite"><a href="#n10">[10]</a></span> و الـ logo فـ الـ header: الـ anchor كيصلح للـ external (بحال OAuth)، أما التصفح الداخلي فخاصو <strong><code>&lt;Link&gt;</code></strong> ديال React Router — و Destination ديالو كيتبدّل: <code>to={this.props.auth ? '/surveys' : '/'}</code> (مسجّل &rarr; dashboard، وإلا &rarr; landing).<span class="cite"><a href="#n11">[11]</a></span></p>
+<pre dir="ltr"><code>import { Link } from 'react-router-dom';
+
+&lt;Link to={this.props.auth ? '/surveys' : '/'} className="brand-logo"&gt;
+  Emaily
+&lt;/Link&gt;</code></pre>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> شنو القيمة اللي كيرجع بها <code>authReducer</code> فـ حال "الطلب مازال جاي والجواب ماوصلش"؟</p>
+  <button class="opt">false حيت ما كاين حتى جواب</button>
+  <button class="opt" data-correct>null حيت مازال ما عرفنا والو</button>
+  <button class="opt">الـ user model ديال الـ server</button>
+  <button class="opt">object خاوي بحال الـ default ديالو</button>
+  <p class="explain">القيمة الافتراضية هي <code>null</code> = "ما عرفنا والو، الـ request مازال جاي" — وهاكذا ما كينيناش content jumping ملي يكون الـ network بطيء.<span class="cite"><a href="#n5">[5]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> علاش payload ديال FETCH_USER خاصو يكون <code>res.data</code> ماشي <code>res</code> كامل؟</p>
+  <button class="opt">حيت res فيه متغيرات ماشي مفيدة</button>
+  <button class="opt">حيت reducer محتاج غير user model</button>
+  <button class="opt" data-correct>حيت غير data هو user model</button>
+  <button class="opt">حيت res فيه headers و config</button>
+  <p class="explain"><code>res</code> هو output كامل ديال axios (config, headers, request, status...) — والوحيد اللي كيهمنا الـ reducer هو <code>data</code> اللي هو user model نفسه.<span class="cite"><a href="#n5">[5]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> فـ <code>renderContent()</code>، ملّى <code>this.props.auth</code> بقات <code>null</code>، شنو خاصها يبان فالـ header؟</p>
+  <button class="opt">زر كبير ديال login with Google</button>
+  <button class="opt">زر logout + أزرار الـ credits</button>
+  <button class="opt">الـ logo و الـ navbar كاملين</button>
+  <button class="opt" data-correct>والو أصلا مازال ما عرفنا والو</button>
+  <p class="explain">حالة <code>null</code> = مازال كنستناو الجواب — علّاش ما كنورّيو والو فهاد اللحظة، باش ما يتقفزش المحتوى مرة login مرة logout.<span class="cite"><a href="#n6">[6]</a></span><span class="cite"><a href="#n7">[7]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> مراجعة: من الدرس 9، علاش الـ BrowserRouter كيقبل غير child وحدة؟</p>
+  <button class="opt" data-correct>حيت React Router كيعطيك error واضح</button>
+  <button class="opt">حيت div كتعطّل الـ proxy rules</button>
+  <button class="opt">حيت BrowserRouter ما كيقراش ملفات CSS</button>
+  <button class="opt">حيت خاص div تكون بـ container</button>
+  <p class="explain">قاعدة React Router: الـ BrowserRouter كيقبل child واحد فقط — علّاش كنلفّو جوج + الـ routes كاملين فـ div وحدة داخلو، وإلا الـ app كيطيح بـ error.<span class="cite"><a href="#n2">[2]</a></span></p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0003-client-redux-architecture.html">المرجع 0003</a><span>·</span>
+    <a href="0009-react-router-header.html">الدرس السابق 9</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>11 — الدفع بـ Stripe: tokens و charges و credits</strong> (الكورس section 08).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>07. Developing the Client Side/23. Basics of Redux Thunk.vtt</code> — vanilla Redux requires action creators to immediately return an action object, Redux Thunk as middleware wired in src/index.js that calls returned functions with dispatch, dispatch as the funnel forwarding actions to all reducers, first version of fetchUser with axios and .then</li>
+  <li id="n2"><code>07. Developing the Client Side/24. Refactoring the App.vtt</code> — call the action creator from the App component instead of the header to centralize auth logic, refactor App from functional to class component, componentDidMount as the preferred place for initial Ajax requests (componentWillMount may run multiple times, timing difference is nil)</li>
+  <li id="n3"><code>07. Developing the Client Side/25. Testing FetchUser.vtt</code> — wire the action creator into App with connect(null, actions) and import * as actions from '../actions', then test that the request fires and the action reaches the reducer</li>
+  <li id="n4"><code>07. Developing the Client Side/26. Refactoring to AsyncAwait.vtt</code> — refactor the fetchUser action creator from .then promise chaining to async/await syntax</li>
+  <li id="n5"><code>07. Developing the Client Side/27. AuthReducer Return Values.vtt</code> — payload must be res.data (the user model) not the whole axios response, FETCH_USER type imported from actions/types.js, reducer returns null while pending, the user model when logged in, false via action.payload || false when logged out (empty string is falsy), avoid showing wrong UI while a slow request is pending</li>
+  <li id="n6"><code>07. Developing the Client Side/28. Accessing State in the Header.vtt</code> — hook Header to the store with connect and mapStateToProps destructuring ({ auth }), test with console.log(this.props) showing auth null then user model, renderContent helper switching on this.props.auth (null, false, default)</li>
+  <li id="n7"><code>07. Developing the Client Side/29. Header Content.vtt</code> — throttle the connection in Chrome DevTools to see the transient "still deciding" state, show nothing while null, Login With Google anchor with href /auth/google when false, logout button when logged in, content jumping as a common mobile complaint</li>
+  <li id="n8"><code>07. Developing the Client Side/30. Redirecting a User on Auth.vtt</code> — after passport.authenticate('google') middleware add a second route handler (req, res) => res.redirect('/surveys') because no handler existed after the middleware and the callback errored</li>
+  <li id="n9"><code>07. Developing the Client Side/31. Redirect on Logout.vtt</code> — logout chosen as a plain anchor href="/api/logout" (full browser request, simpler) versus an Ajax request requiring action creator plus reducer update, server logout route changed to res.redirect('/') instead of sending the user model</li>
+  <li id="n10"><code>07. Developing the Client Side/32. Landing Component.vtt</code> — Landing extracted from the dummy into components/Landing.js as a functional component with marketing text and style={{ textAlign: 'center' }} (two curly braces: JS then object), imports must be at the top of the file</li>
+  <li id="n11"><code>07. Developing the Client Side/33. Link Tags.vtt</code> — anchor tags are for external documents while React Router navigation uses the Link component, link to prop set with a ternary on this.props.auth: '/surveys' when logged in else '/'</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

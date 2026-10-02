@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference 0005 — Survey Model &amp; Mailer Cheatsheet</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">Reference · 0005 · Cheatsheet</p>
+  <h1>Survey Model &amp; Mailer</h1>
+  <p class="dek">الـ schema ديال الـ survey + خط الأنابيب ديال <code>POST /api/surveys</code> + تشريح الـ Mailer class — فورقة وحدة.</p>
+  <p class="meta">Compressed from course section 10 · Print this page</p>
+</header>
+
+<h2>1 · Survey schema</h2>
+<table dir="ltr">
+  <tr><th>Field</th><th>Type</th><th>الدور</th></tr>
+  <tr><td><code>title</code></td><td><code>String</code></td><td>عنوان الـ survey.</td></tr>
+  <tr><td><code>subject</code></td><td><code>String</code></td><td>الـ subject line ديال الـ email (كيسير أيضاً للـ Mailer).<span class="cite"><a href="#src1">[1]</a></span></td></tr>
+  <tr><td><code>body</code></td><td><code>String</code></td><td>النص اللي كيدخل فـ <code>surveyTemplate(survey)</code>.</td></tr>
+  <tr><td><code>recipients</code></td><td><code>[Recipient]</code></td><td><strong>subdocument collection</strong> — كتتولّد وحدها من array عادي.<span class="cite"><a href="#src2">[2]</a></span></td></tr>
+  <tr><td><code>recipients[].email</code></td><td><code>String</code></td><td>العنوان ديال المتلقّي.<span class="cite"><a href="#src3">[3]</a></span></td></tr>
+  <tr><td><code>recipients[].responded</code></td><td><code>Boolean</code>, default <code>false</code></td><td>كينقلب لـ <code>true</code> ملي يصوّت — كيمنع التصويت المكرر.<span class="cite"><a href="#src3">[3]</a></span></td></tr>
+  <tr><td><code>_user</code></td><td><code>ObjectId, ref: 'user'</code></td><td><strong>relationship field</strong> — شكون مالك الـ survey.<span class="cite"><a href="#src4">[4]</a></span></td></tr>
+  <tr><td><code>dateSent</code> / <code>lastResponded</code></td><td><code>Date</code></td><td>اختياريين — كيعطيو واش الـ survey مازال active.<span class="cite"><a href="#src4">[4]</a></span></td></tr>
+</table>
+
+<h2>2 · subdocument ولا relationship field؟</h2>
+<table dir="ltr">
+  <tr><th>القرار</th><th>متى</th><th>فهاد الـ app</th></tr>
+  <tr><td><strong>subdocument</strong></td><td>السجل ما عندو معنى بلا والد ديالو (ownership واضح).</td><td>recipients داخل survey.<span class="cite"><a href="#src5">[5]</a></span></td></tr>
+  <tr><td><strong>relationship field</strong></td><td>السجل عندو معنى بلا والد، ولا الـ parent يقدر يتكبر بلا حدود.</td><td>survey &rarr; user (<code>_user</code>).<span class="cite"><a href="#src5">[5]</a></span></td></tr>
+</table>
+<ul>
+  <li><strong>4MB = limit ديال document وحدة فـ MongoDB</strong>. بـ ~20 bytes للـ email → وحدة survey ≈ <strong>200,000 recipients</strong>.<span class="cite"><a href="#src5">[5]</a></span></li>
+  <li>إلا حطينا surveys كاملة داخل user → نفس الـ limit كيطبّق على user كامل → super user كيوقف فاش يستهلك 200k.<span class="cite"><a href="#src5">[5]</a></span></li>
+  <li>بناءً على هادشي: recipients = subdocs، surveys = collection وحدة مع <code>_user</code>.</li>
+</ul>
+
+<h2>3 · خط أنابيب <code>POST /api/surveys</code></h2>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">requireLogin<small>401 إلا ما مسجّلش</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">requireCredits<small>403 إلا credits &lt; 1</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">new Survey<small>بلا save</small></div>
+  </div>
+  <div class="flow-row">
+    <div class="flow-node">await mailer.send()<small>SendGrid</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">await survey.save()<small>الـ DB</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">credits -= 1<small>await user.save()</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">res.send(user)<small>أو 422 فـ catch</small></div>
+  </div>
+</div>
+<pre dir="ltr"><code>const survey = new Survey({
+  title, subject, body,
+  recipients: emails.split(',').map(email =&gt; ({ email: email.trim() })),
+  _user: req.user.id
+});</code></pre>
+<ul>
+  <li>الملفات: <code>routes/surveyRoutes.js</code> · <code>models/survey.js</code> · <code>models/recipient.js</code> · <code>middleware/requireCredits.js</code>.<span class="cite"><a href="#src6">[6]</a></span><span class="cite"><a href="#src7">[7]</a></span></li>
+  <li>كلشي لفّف فـ <strong>try/catch</strong> → <code>422 unprocessable entity</code> إلا وقع خطأ.<span class="cite"><a href="#src8">[8]</a></span></li>
+  <li>الرد هو الـ user المحدّث (بحال Stripe) باش الـ header يتحدّث.<span class="cite"><a href="#src8">[8]</a></span></li>
+</ul>
+
+<h2>4 · تشريح الـ Mailer class</h2>
+<table dir="ltr">
+  <tr><th>الجزء</th><th>الكود / الدور</th></tr>
+  <tr><td>الملف</td><td><code>services/Mailer.js</code> — <code>class Mailer extends helper.Mail</code>.<span class="cite"><a href="#src9">[9]</a></span></td></tr>
+  <tr><td>التوقيع</td><td><code>new Mailer({ subject, recipients }, content)</code> — الأول object، الثاني HTML string.<span class="cite"><a href="#src10">[10]</a></span></td></tr>
+  <tr><td><code>from_email</code></td><td><code>new helper.Email(...)</code> — <strong>خاصو يكون verified sender</strong> عند SendGrid.<span class="cite"><a href="#src11">[11]</a></span></td></tr>
+  <tr><td><code>body</code></td><td><code>new helper.Content('text/html', content)</code> + <code>this.addContent(this.body)</code> (طريقة ديال base class).<span class="cite"><a href="#src12">[12]</a></span></td></tr>
+  <tr><td><code>formatAddresses</code></td><td><code>recipients.map(({ email }) =&gt; new helper.Email(email))</code> — كتحل الـ subdocs.<span class="cite"><a href="#src12">[12]</a></span></td></tr>
+  <tr><td><code>addClickTracking</code></td><td><code>helper.trackingSettings</code> + <code>helper.clickTracking(true, true)</code> → <code>setClickTracking</code> → <code>addTrackingSettings</code>.<span class="cite"><a href="#src12">[12]</a></span></td></tr>
+  <tr><td><code>addRecipients</code></td><td>طريقة ديالنا — كتزيد الـ recipients على الـ mail.<span class="cite"><a href="#src13">[13]</a></span></td></tr>
+  <tr><td><code>sgApi</code></td><td><code>SendGrid(keys.sendGridKey)</code> — object ديال الـ API.<span class="cite"><a href="#src14">[14]</a></span></td></tr>
+</table>
+
+<h2>5 · send() + template + redirect</h2>
+<pre dir="ltr"><code>async send() {
+  const request = this.sgApi.API.emptyRequest({
+    method: 'POST',
+    path: '/v3/mail/send',
+    body: this.toJSON()
+  });
+  const response = await this.sgApi.API(request);
+  return response;
+}</code></pre>
+<ul>
+  <li>الـ template: <code>services/emailTemplates/surveyTemplate.js</code> — function كترجع HTML (backtick string): عنوان، <code>${survey.body}</code>، وجوج links ديال yes/no.<span class="cite"><a href="#src15">[15]</a></span></li>
+  <li>الـ links: <strong>ماشي relative</strong> (فـ inbox غادي يوصلو لـ domain ديال Gmail) — كيستعملو <code>keys.redirectDomain</code> + <code>/api/surveys/thanks</code> (route كيرجع "Thanks for voting").<span class="cite"><a href="#src16">[16]</a></span></li>
+  <li>التحقّق: من SendGrid dashboard &rarr; <strong>Activity</strong> &rarr; events ديال processed / delivered / opened / <strong>click</strong> — الـ click هو اللي كيخلي الـ feedback يرجع.<span class="cite"><a href="#src17">[17]</a></span></li>
+  <li>الاختبار: POST مع login + credits (test card 4242) بلا ما تصاوب شي UI.<span class="cite"><a href="#src18">[18]</a></span></li>
+</ul>
+
+<h2 id="sources">Sources</h2>
+<ol style="font-size:0.85rem" dir="ltr">
+  <li id="src1">Course lecture 10.20 · <em>Mailer Constructor</em> (00:00–08:31) — <code>10. Mongoose for Survey Creation/20. Mailer Constructor.vtt</code></li>
+  <li id="src2">Course lecture 10.11 · <em>Creating Subdoc Collections</em> (00:16–01:12) — <code>10. Mongoose for Survey Creation/11. Creating Subdoc Collections.vtt</code></li>
+  <li id="src3">Course lecture 10.06 · <em>Setting up SubDocs</em> (00:17–01:14) — <code>10. Mongoose for Survey Creation/06. Setting up SubDocs.vtt</code></li>
+  <li id="src4">Course lecture 10.07 · <em>Relationship Fields</em> (00:00–05:01) — <code>10. Mongoose for Survey Creation/07. Relationship Fields.vtt</code></li>
+  <li id="src5">Course lecture 10.05 · <em>Limitations of Subdocument Collections</em> (00:00–07:51) — <code>10. Mongoose for Survey Creation/05. Limitations of Subdocument Collections.vtt</code></li>
+  <li id="src6">Course lecture 10.08 · <em>Survey Creation Route Handler</em> (00:13–01:06) — <code>10. Mongoose for Survey Creation/08. Survey Creation Route Handler.vtt</code></li>
+  <li id="src7">Course lecture 10.09 · <em>Verifying Minimum Credits</em> (00:00–06:24) — <code>10. Mongoose for Survey Creation/09. Verifying Minimum Credits.vtt</code></li>
+  <li id="src8">Course lecture 10.26 · <em>Polish in the Route Handler</em> (00:00–09:47) — <code>10. Mongoose for Survey Creation/26. Polish in the Route Handler.vtt</code></li>
+  <li id="src9">Course lecture 10.17 · <em>Mailer Setup</em> (00:04–01:07) — <code>10. Mongoose for Survey Creation/17. Mailer Setup.vtt</code></li>
+  <li id="src10">Course lecture 10.19 · <em>Mailer in Use</em> (00:00–11:00) — <code>10. Mongoose for Survey Creation/19. Mailer in Use.vtt</code></li>
+  <li id="src11">Course note · <em>Update for from_email setting</em> — <code>10. Mongoose for Survey Creation/18. Update for from_email setting.html</code></li>
+  <li id="src12">Course lecture 10.21 · <em>Boilerplate for Sending Emails</em> (00:00–09:28) — <code>10. Mongoose for Survey Creation/21. Boilerplate for Sending Emails.vtt</code></li>
+  <li id="src13">Course lecture 10.22 · <em>More Mailer Properties</em> (00:11–01:03) — <code>10. Mongoose for Survey Creation/22. More Mailer Properties.vtt</code></li>
+  <li id="src14">Course lecture 10.23 · <em>Sending SendGrid Emails</em> (00:00–06:16) — <code>10. Mongoose for Survey Creation/23. Sending SendGrid Emails.vtt</code></li>
+  <li id="src15">Course lecture 10.25 · <em>Improving the Email Template</em> (00:00–08:57) — <code>10. Mongoose for Survey Creation/25. Improving the Email Template.vtt</code></li>
+  <li id="src16">Course lecture 10.28 · <em>Feedback for User Feedback</em> (00:00–11:12) — <code>10. Mongoose for Survey Creation/28. Feedback for User Feedback.vtt</code></li>
+  <li id="src17">Course lecture 10.27 · <em>Verifying Sendgrid Click Tracking</em> (00:21–02:04) — <code>10. Mongoose for Survey Creation/27. Verifying Sendgrid Click Tracking.vtt</code></li>
+  <li id="src18">Course lecture 10.24 · <em>Testing Email Sending</em> (00:16–01:05) — <code>10. Mongoose for Survey Creation/24. Testing Email Sending.vtt</code></li>
+</ol>
+
+<p class="nav-links"><a href="../lessons/0013-survey-model.html">&larr; الدرس 13</a><span>·</span><a href="../lessons/0014-sendgrid-mailer.html">الدرس 14</a><span>·</span><a href="../reference/0004-stripe-deploy.html">المرجع 0004</a><span>·</span><a href="../MISSION.md">المهمة</a></p>
+
+</main>
+</body>
+</html>

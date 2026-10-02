@@ -28,15 +28,12 @@
   <li><strong>ماشي كل click = request.</strong> الـ SendGrid كيجمع الأحداث وكيصيفط <strong>bulk واحد كل شي كاع 30 ثانية ولا دقيقة</strong> — يعني الـ <code>req.body</code> ديالنا غادي يكون <strong>array ديال objects</strong>، ماشي event وحيد.<span class="cite"><a href="#n2">[2]</a></span></li>
   <li><strong>فـproduction كلشي ساهل:</strong> الـ SendGrid غير كي POST على domain عام بحال <code>email.com</code> ولا <code>your_app.herokuapp.com</code>. أما فـdevelopment فالسيرفر ديالنا جالس على <code>localhost:5000</code>، وهو عنوان <strong>خاص بجهازنا وحدنا</strong> — الـ SendGrid عمرو ما غادي يوصل ليه.<span class="cite"><a href="#n2">[2]</a></span></li>
 </ul>
-<div class="flow">
-  <div class="flow-row">
-    <div class="flow-node">SendGrid<small>click event</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">public URL<small>tunnel</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">localhost:5000<small>Express route</small></div>
-  </div>
-</div>
+<ol class="seq">
+  <li><span class="from">SendGrid</span> <span class="arrow">→</span> <span class="to">ngrok URL</span> <span class="what">POST /api/surveys/webhooks بالـ events</span></li>
+  <li><span class="from">ngrok</span> <span class="arrow">→</span> <span class="to">Express</span> <span class="what">tunnel → localhost:5000</span></li>
+  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">terminal</span> <span class="what">console.log(req.body) ورجع object خاوي</span></li>
+</ol>
+<p class="mono">كيفاش تقرا هاد المخطط: تبع الأرقام من 1 حتى 3 — SendGrid كتصيفط للـ URL العامة و ngrok كيدوزها للـ localhost.</p>
 <p>المشكلة هي كيفاش نوجدوا الـ public URL بلا ما نdeployi. الجواب: <strong>tunnel</strong>.</p>
 
 <h2>2 · ngrok: الـ tunnel ديال development</h2>
@@ -50,7 +47,7 @@ ngrok http 5000                             # كل ما تحل الـ dev</code>
   <span class="label">نتيجة كتجي غلط</span>
   عاود شغّل <code>ngrok</code> وبقيتي على الـ URL القديمة فالـ SendGrid: الخدمة كتبان <strong>Active</strong> ولكن والو ما كيوصل — كل الـ votes ديال داك الفترة ضاعو. الإصلاح: قرا الـ address الجديدة من الـ terminal وبدّلها فـ<code>HTTP POST URL</code> قبل ما تعاود تختبر.
 </div>
-<p>فالـ SendGrid dashboard: <code>Settings</code> &rarr; <code>Mail Settings</code> &rarr; <code>Event Notification</code>:</p>
+<p>فالـ SendGrid dashboard: <code>Settings</code> → <code>Mail Settings</code> → <code>Event Notification</code>:</p>
 <ul>
   <li>تفعّل <strong>Event Notification</strong> وحط فـ<strong>HTTP POST URL</strong>: <code>https://YOUR_TUNNEL_ADDRESS/api/surveys/webhooks</code> — <strong>خاص يكون الـ route كامل</strong>، ماشي غير الـ domain.<span class="cite"><a href="#n4">[4]</a></span></li>
   <li>قبل كلشي، زيد route مؤقت فـExpress كي <code>console.log(req.body)</code> وكيرجع object خاوي باش ما نخلّيوش الـ request معلّق، ومن بعد ضغط <strong>Test Your Integration</strong>.<span class="cite"><a href="#n4">[4]</a></span></li>
@@ -66,16 +63,17 @@ ngrok http 5000                             # كل ما تحل الـ dev</code>
 /api/surveys/&lt;surveyId&gt;/no      # الزر الثاني</code></pre>
 <p>يعني <strong>كن encodeو الـ survey id و الـ choice داخل الرابط</strong> اللي الـ user كي clicki عليه، ونبقى على نفس الـ namespace ديال <code>/surveys</code>.<span class="cite"><a href="#n6">[6]</a></span> ملي الـ SendGrid يرجع لينا، الـ <code>url</code> فيها كامل المعلومات وحنا غير نقلبوها.</p>
 <ol class="seq">
-  <li><span class="from">المستعمل</span> <span class="arrow">→</span> <span class="to">الـ email</span> <span class="what">click على الرابط /api/surveys/&lt;surveyId&gt;/yes</span></li>
-  <li><span class="from">الـ email</span> <span class="arrow">→</span> <span class="to">SendGrid</span> <span class="what">click event فيه غير email + url</span></li>
-  <li><span class="from">SendGrid</span> <span class="arrow">→</span> <span class="to">ngrok</span> <span class="what">bulk POST ديال الأحداث كل شي 30 ثانية</span></li>
+  <li><span class="from">User</span> <span class="arrow">→</span> <span class="to">email link</span> <span class="what">click على /api/surveys/:surveyId/yes</span></li>
+  <li><span class="from">SendGrid</span> <span class="arrow">→</span> <span class="to">ngrok URL</span> <span class="what">bulk POST ديال click events (email + url)</span></li>
   <li><span class="from">ngrok</span> <span class="arrow">→</span> <span class="to">Express</span> <span class="what">tunnel → localhost:5000/api/surveys/webhooks</span></li>
-  <li><span class="from">الـ route</span> <span class="arrow">→</span> <span class="to">path-parser</span> <span class="what">{ email, surveyId, choice } من الـ pathname</span></li>
+  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">path-parser</span> <span class="what">new URL(event.url).pathname بلا domain</span></li>
+  <li><span class="from">path-parser</span> <span class="arrow">→</span> <span class="to">route handler</span> <span class="what">p.test(pathname) → { email, surveyId, choice }</span></li>
 </ol>
+<p class="mono">كيفاش تقرا هاد المخطط: تبع الأرقام من 1 حتى 5 — كل سطر كيزيد معلومة حتى كتخرج { email, surveyId, choice }.</p>
 <p>ملاحظة صغيرة: إلا clickiti على الزر، غادي توصل لـ<code>Cannot GET</code> حيت الـ route بعد ما تزادت — هادي غادي نصلحوها فالدرس الجاي ديال النتائج، ماشي دابا.<span class="cite"><a href="#n6">[6]</a></span></p>
 
 <h2>4 · pre-processing: الـ pipeline قبل ما نمسسو الـ DB</h2>
-<p>الـ array اللي كتجي <strong>قذرة بzentwaً</strong>، وحنا خاصنا نصفّيوها قبل ما نهتمو بيها:<span class="cite"><a href="#n7">[7]</a></span></p>
+<p>الـ array اللي كتجي من SendGrid عامرة بالروينة، وخاصنا نصفّيوها قبل ما نقيسو الـ DB. علاش هادي مهمة ملي تخدم لـclient: الـ client كيخلصك على أرقام صحيحة، ماشي على votes مكررة ولا محسوبة غلط.<span class="cite"><a href="#n7">[7]</a></span></p>
 <ul>
   <li><strong>duplicates:</strong> user كي clicki مرتين بجوج فثانية وحدة → جوج events متطابقين (email + url نيشان)، وخافنا race condition.</li>
   <li><strong>أخطاء ديال config:</strong> شي حد ممكن يزيد أحداث أخرى (bounce…) فـSendGrid → objects بلا <code>url</code>.</li>
@@ -91,7 +89,7 @@ ngrok http 5000                             # كل ما تحل الـ dev</code>
 <pre><code>npm install --save lodash path-parser</code></pre>
 <p>الـ imports: الـ lodash بالـ convention ديال <code>_</code>، و <code>URL</code> جاي من Node نفسو (ماعندكش خاصو تنصبو). إلا شفتي <code>TypeError: Path is not a constructor</code>، الإصلاح هو <code>const { Path } = require('path-parser');</code>.<span class="cite"><a href="#n10">[10]</a></span><span class="cite"><a href="#n11">[11]</a></span></p>
 <div class="callout">
-  <span class="label">Pitfall</span>
+  <span class="label">نتيجة كتجي غلط</span>
   ما تديرش destructuring على نتيجة <code>p.test()</code> مباشرة (<code>const { surveyId } = p.test(...)</code>) — إلا رجع <code>null</code> غادي تقرا property من null ويطيح error. خلي <code>match</code> الأول وتأكد منها.<span class="cite"><a href="#n9">[9]</a></span>
 </div>
 

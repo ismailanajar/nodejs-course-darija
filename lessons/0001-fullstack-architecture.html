@@ -48,10 +48,22 @@
     <div class="flow-node">MongoDB<small>source of truth</small></div>
   </div>
 </div>
+<div class="callout analogy">
+  <span class="label">بأي مثال</span>
+  تخيّل MongoDB بحال أرشيف مغلق: Express هو الموظف اللي عندو المفاتيح، وReact كيبقى فالباب كيتسنى. كاع طلبات الداتا كيمشيو من عندو — حتى واحد ما كيدخل للأرشيف مباشرة.
+</div>
 <p>دابا عندك backend experience — فهاد المشروع، الـ Express هو غير <strong>framework فوق الـ Node</strong> عطيك routing و middleware.<span class="cite"><a href="#n4">[4]</a></span></p>
 
 <h2>3 · الـ route handler = watcher</h2>
 <p>كل ما كتبتي <code>app.get('/api/surveys', ...)</code>، كتسنا <strong>واحد route handler</strong>: الـ <code>app</code> object هو الـ server اللي خدام، و <code>.get</code> كتقول لـ Express "سنتيني requests بـ GET method". الـ HTTP methods غير <strong>conventions ديال intent</strong>: GET = جيب، POST = صيفط، PUT/PATCH = بدل، DELETE = مسح.<span class="cite"><a href="#n5">[5]</a></span></p>
+<p>شوف الـ round-trip ديال أي <code>GET /api/surveys</code> من الأول حتى للفين:</p>
+<ol class="seq">
+  <li><span class="from">Browser</span> <span class="arrow">→</span> <span class="to">Server</span> <span class="what">GET /api/surveys</span></li>
+  <li><span class="from">Server</span> <span class="arrow">→</span> <span class="to">route handler</span> <span class="what">match ديال المسار</span></li>
+  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">MongoDB</span> <span class="what">query ديال surveys</span></li>
+  <li><span class="from">MongoDB</span> <span class="arrow">→</span> <span class="to">Express</span> <span class="what">records ديال results</span></li>
+  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">Browser</span> <span class="what">response فيها JSON</span></li>
+</ol>
 <pre><code>npm init                 # -&gt; package.json, "central hub" ديال المشروع
 npm install --save express</code></pre>
 <p class="mono" style="font-size:0.8rem;color:var(--ink-faint)">المرجع: <a href="../reference/0001-emaily-architecture.html">Reference 0001 — Architecture &amp; User Flow</a></p>

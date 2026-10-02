@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 5 — الـ session ديال authentication: passport callbacks + cookies + logout</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 5 · Course sections 04</p>
+  <h1>الـ session ديال authentication: passport callbacks + cookies + logout</h1>
+  <p class="dek">عندنا user فـ database — دابا كيفاش نقولو للسيرفر "هاد الـ request جا من عندو" فالمرة الجاية؟ الجواب: serialize, cookie, deserialize.</p>
+  <p class="meta">~10 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تكمّل الـ authentication flow من الأول حتى للأخير: token فالـ cookie، <code>req.user</code> فكل route، و<code>/api/logout</code> خدام — وغادي تقدر تشرح لـclient شنو كيوقع فالخلفيات فكل request.
+</div>
+
+<h2>1 · serializeUser: من user model إلى token</h2>
+<p>الكورس نبّه: الـ callback اللي صاوبناه كياخد الـ profile ومن بعد كيجيب ولا كيصاوب الـ user — دابا خاصنا <strong>آخر خطوة</strong>: ناخذو هاد الـ user model ونولّدو <strong>piece ديال معلومات كتعرّف الـ user</strong>، وندوزوها للـ user بـ cookie كيرجع فكل request جاي.<span class="cite"><a href="#n1">[1]</a></span></p>
+<ul>
+  <li><code>passport.serializeUser(fn)</code> — الـ function هادي <strong>كتنادي أوتوماتيكياً</strong> من Passport بالـ user model اللي جيبناه، وPassport هو اللي كيحط النتيجة فالـ cookie.<span class="cite"><a href="#n1">[1]</a></span></li>
+  <li>الشيطنة ديال الكود: <code>done(null, user.id)</code> — أول argument = error (<code>null</code> إلا وقع شي حاجة)، الثاني = الـ token.<span class="cite"><a href="#n1">[1]</a></span></li>
+  <li>نقطة كثيرة كتلخبط: <code>user.id</code> <strong>ماشي هو profile ID ديال Google</strong> — هادي <strong>shortcut</strong> للـ <code>_id</code> اللي MongoDB ولّدو أوتوماتيكياً للrecord.<span class="cite"><a href="#n1">[1]</a></span></li>
+  <li>علاش؟ حيت خدمة وحدة (Google) ماشي هي الوحيدة — ممكن تزيد Facebook ولا LinkedIn، وما تقدرش تفترض أن كلشي عندو Google ID، بصح كل user عندو ID من MongoDB.<span class="cite"><a href="#n1">[1]</a></span></li>
+</ul>
+
+<h2>2 · deserializeUser: من token إلى user model</h2>
+<p>فكل request جاي، الـ browser كيزيد الـ cookie أوتوماتيكياً، وPassport كينادي <code>deserializeUser</code> بالـ token اللي فيه، والوظيفة ديالك هي تردو <strong>user model</strong> من جديد.<span class="cite"><a href="#n2">[2]</a></span></p>
+<pre><code>passport.deserializeUser((id, done) =&gt; {
+  User.findById(id).then(user =&gt; done(null, user));
+});</code></pre>
+<div class="callout">
+  <span class="label">تنبيه</span>
+  راجع الإملاء ديال <code>serializeUser</code> و <code>deserializeUser</code> — الكورس قال بزااف الناس كيديرو typo وكيوجهم خطأ "is not a function".<span class="cite"><a href="#n2">[2]</a></span>
+</div>
+
+<h2>3 · Cookies: Express ما عندها والو</h2>
+<ul>
+  <li>بلا أي مكتبة زيادة، <strong>Express ما عندها حتى دعم ديال cookies out of the box</strong>.<span class="cite"><a href="#n3">[3]</a></span></li>
+  <li>الحل: <code>npm install --save cookie-session</code> ونربطوها فـ <code>index.js</code> (اللي هو مكان الـ setup كامل ديال التطبيق).<span class="cite"><a href="#n3">[3]</a></span></li>
+</ul>
+
+<h2>4 · كيفاش كيتجرّب: من cookie إلى req.user</h2>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">request كيجي<small>من browser</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">cookie-session<small>كتحل + كشفّر الداتا</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">Passport<small>كياخد الـ user ID</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">deserializeUser<small>ID &rarr; user model</small></div>
+  </div>
+  <div class="flow-row">
+    <div class="flow-node">req.user<small>مزيان</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">route handler<small>كيكمل عادي</small></div>
+  </div>
+</div>
+<ul>
+  <li>الـ <strong>نتيجة النهائية</strong> ديال العملية كاملة هي أن الـ user model اللي رجع من <code>deserializeUser</code> كيتصاوب فوق الـ request بـ <code>req.user</code>، ومن بعد الـ request كيمشي للـ route handler ديالو.<span class="cite"><a href="#n4">[4]</a></span></li>
+  <li>الطريقة ديال التجربة: route جديد <code>GET /api/current_user</code> غير كيرجع <code>req.user</code> — إلا رجع user، يعني authentication خدام.<span class="cite"><a href="#n4">[4]</a></span></li>
+  <li>خاصك تعاود تدخل مرة وحدة من <code>/auth/google</code> من بعد ما زدتي الـ cookie logic باش يتولّد الـ cookie، ومن بعد حل <code>/api/current_user</code> — غادي تشوف user ديالك بالـ id، الـ Google ID، و<code>__v</code> ديال Mongoose.<span class="cite"><a href="#n4">[4]</a></span></li>
+  <li><strong>Logout</strong>: route <code>GET /api/logout</code>؛ Passport كيزيد على الـ request الـ <code>req.user</code> ودوال خرين، واللي همنا هو <code>req.logout()</code> — كتاخد الـ ID اللي فالـ cookie وكتقتلو.<span class="cite"><a href="#n5">[5]</a></span></li>
+</ul>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تحل شي حاجة. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> شنو كيوقع من بعد ما <code>deserializeUser</code> يرجع user model؟</p>
+  <button class="opt">الـ server كيقتل cookie ديال user</button>
+  <button class="opt" data-correct>الـ user كيتسجل فوق req.user مباشرة</button>
+  <button class="opt">Google كيرجع access token جديد دائما</button>
+  <button class="opt">React كيصاوب component ديال login كامل</button>
+  <p class="explain">النتيجة النهائية هي <code>req.user</code> فوق الـ request، ومن بعد الـ request كيمشي للـ route handler ديالو.<span class="cite"><a href="#n4">[4]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> شنو كيدير <code>req.logout()</code>؟</p>
+  <button class="opt" data-correct>كيقتل الـ ID اللي فالـ cookie</button>
+  <button class="opt">كيمسح كامل collection ديال users عندنا</button>
+  <button class="opt">كيزيح الـ user من MongoDB نهائيا</button>
+  <button class="opt">كيرجع client ID لـ Google نيشان</button>
+  <p class="explain">الـ <code>req.logout()</code> كتاخد الـ cookie اللي فيها الـ user ID وكتقتل الـ ID — يعني كتخرج الـ user من التطبيق.<span class="cite"><a href="#n5">[5]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> علاش خاص cookie-session قبل ما Passport يخدم على authentication؟</p>
+  <button class="opt">Express عندها cookie support كامل بزاف</button>
+  <button class="opt">باش Google يقبل الـ redirect ديالنا</button>
+  <button class="opt">باش npm يقدر ينصبو passport هنا</button>
+  <button class="opt" data-correct>Express ما عندها cookie support أصلا</button>
+  <p class="explain">الكورس قال باللي Express out of the box ما عندها حتى فكرة على cookies، وهادشي علاش نصبنا <code>cookie-session</code>.<span class="cite"><a href="#n3">[3]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> مراجعة: علاش كيتسجّلو جوج records بنفس Google ID إلا مشينا مباشرة لـ <code>save()</code>؟</p>
+  <button class="opt">حيت MongoDB كيرفض records بـ googleId مكرر</button>
+  <button class="opt">حيت كل OAuth كيرجع profile جديد مختلف</button>
+  <button class="opt" data-correct>حيت كنصاوبو record جديد بلا ما نسولو</button>
+  <button class="opt">حيت profile ID كيتغير من session ديالنا</button>
+  <p class="explain">رجع للدرس 4: خاصك <code>query</code> بـ profile ID <strong>قبل</strong> ما تصاوب record جديد، وإلا كل دخول غادي يزيد record مكرر.<span class="cite"><a href="#n6">[6]</a></span></p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0002-auth-mongoose-flow.html">المرجع 0002</a><span>·</span>
+    <a href="0004-mongo-mongoose-models.html">الدرس السابق</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>6 — Dev vs Prod: keys + environment variables</strong> (القسم 05).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>04. Adding MongoDB/14. Encoding Users.vtt</code> (04:48–05:20, 09:50–12:46) — serializeUser auto-called with the user model, done(null, user.id), user.id = Mongo _id not profile ID, multiple providers</li>
+  <li id="n2"><code>04. Adding MongoDB/15. Deserialize User.vtt</code> (00:08–00:52) — take the ID from the cookie, turn it back into a user model, watch your spelling on serialize/deserialize</li>
+  <li id="n3"><code>04. Adding MongoDB/16. Enabling Cookies.vtt</code> (00:38–01:28) — Express has no cookie support out of the box, npm install --save cookie-session, setup in index.js</li>
+  <li id="n4"><code>04. Adding MongoDB/17. Testing Authentication.vtt</code> (00:39–03:41, 05:59–06:13) — cookie-session extracts data, passport pulls the ID, deserialize turns it into a model, result is req.user, test route /api/current_user</li>
+  <li id="n5"><code>04. Adding MongoDB/18. Logging Out Users.vtt</code> (00:18–01:37) — GET /api/logout route, req and res short for request/response, passport attaches req.user and req.logout, logout kills the cookie ID</li>
+  <li id="n6"><code>04. Adding MongoDB/12. Mongoose Queries.vtt</code> (00:09–01:18) — two user records with identical Google IDs, check for the profile ID before creating a new record</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

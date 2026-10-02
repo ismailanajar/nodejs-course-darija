@@ -29,6 +29,10 @@
 <h2>2 · شكون كيدير شنو: SurveyNew و SurveyForm</h2>
 <p>البنيان بسيط: <code>SurveyNew</code> هو <strong>container</strong> — هي اللي كتقرر واش نورّيو الـ form ولا الـ review. أما <code>SurveyForm</code> فيه الـ fields والـ labels وحدة بواحدة، وكل field عندها component خاص بيها.<span class="cite"><a href="#n3">[3]</a></span></p>
 <p>وإلا بدينا بلا Redux Form، خاصنا لكل input: <code>onChange</code> handler + action creator + reducer خاص + <code>connect</code> و <code>mapStateToProps</code>. هادي هي العركة اللي كيجيبها Redux Form: كيتولّى على كامل هاد الشي.<span class="cite"><a href="#n4">[4]</a></span></p>
+<div class="callout analogy">
+  <span class="label">بأي مثال</span>
+  بلا Redux Form، كل input كيسجّل فكراسو خاص بيه: <code>onChange</code> و reducer و <code>connect</code> ديالو هو بوحدهو، ومن بعد خاصك تجمع هاد الدفاتر بيدك. مع Redux Form فين كراسو وحدة هي الـ store ديال <code>reduxForm()</code>، وكل <code>Field</code> غير كيدوّز ليه القيمة مع <code>input</code> و <code>meta</code>.
+</div>
 <pre dir="ltr"><code>npm install redux-form --legacy-peer-deps   # مهم: بلا هاد الـ flag كيعطيك peer deps errors</code></pre>
 <p class="mono" style="font-size:0.8rem;color:var(--ink-faint)">ملاحظة الـ installation جات فملف HTML خاص بالدرس، والتوثيق ديال Redux Form (<code>redux-form.com</code>) موصى بيه بزاف.<span class="cite"><a href="#n5">[5]</a></span></p>
 <p>الاستعمال الأول هو جوج تاجات: <code>reduxForm({ form: 'surveyForm' })</code> اللي كيلبس الـ component، و<code>&lt;Field&gt;</code> اللي كيمثّل كل input. الـ <code>form: 'surveyForm'</code> هو اسم الـ slice اللي غادي يسكن فيه الـ values فـ Redux store.<span class="cite"><a href="#n6">[6]</a></span></p>
@@ -44,6 +48,12 @@
 
 <h2>3 · من HTML field حتى custom component</h2>
 <p>الـ <code>Field</code> كتقدر تعطيه <code>component</code> prop ديال الـ component ديالك هي. Redux Form من بعد كيصيفط ليه جوج props: <code>input</code> (الـ props ديال input: name, value, onChange…) و <code>meta</code> (الـ حالة: touched, error…). يعني الـ component ديالك كيركّز غير على الشكل، والبيانات كيجيوه من البار.<span class="cite"><a href="#n7">[7]</a></span></p>
+<ol class="seq">
+  <li><span class="from">Field</span> <span class="arrow">→</span> <span class="to">SurveyField</span> <span class="what">كيصيفط input و meta و label</span></li>
+  <li><span class="from">SurveyField</span> <span class="arrow">→</span> <span class="to">input</span> <span class="what">كيرسم الخانة بـ value و onChange</span></li>
+  <li><span class="from">input</span> <span class="arrow">→</span> <span class="to">Redux store</span> <span class="what">كل حرفة كتسجل فـ state.form.surveyForm</span></li>
+  <li><span class="from">Redux store</span> <span class="arrow">→</span> <span class="to">Field</span> <span class="what">القيمة كترجع للعرض بلا handlers</span></li>
+</ol>
 <p>ولكن بلا ما تكتب النص ديال label ميت فـ JSX، تعطيه <code>label</code> prop من برا، وهكذا كتقدر تستعمل نفس الـ <code>SurveyField</code> أربع مرات مع labels مختلفة.<span class="cite"><a href="#n8">[8]</a></span></p>
 <pre dir="ltr"><code>&lt;Field component={SurveyField} name="title" label="Survey Title" type="text" /&gt;</code></pre>
 
@@ -62,6 +72,16 @@ renderFields() {
   ));
 }</code></pre>
 <p>فقط لا تنسى الـ <code>key</code> (React كيخلصك بـ warning ديال list بلا <code>key</code>، و<code>name</code> هو الأنسب حيت unique بين الـ fields).<span class="cite"><a href="#n9">[9]</a></span> وهكذا زادت field جديد = سطر واحد فوق — لا JSX جديد لا نسخ ديال props.<span class="cite"><a href="#n9">[9]</a></span></p>
+<div class="stack">
+  <div class="stack-layer"><b>FIELDS array</b><span>سطر واحد لكل حقل: غير <code>label</code> و <code>name</code></span></div>
+  <div class="stack-layer"><b>_.map + Field</b><span>كتصاوب <code>Field</code> وحدة لكل عنصر بـ <code>key</code></span></div>
+  <div class="stack-layer"><b>SurveyField</b><span>الـ component ديال الشكل، نفسو كيتكرر 4 مرات</span></div>
+  <div class="stack-layer"><b>input / meta</b><span>Redux Form كيصيفطهم بلا ما تكتب handlers</span></div>
+</div>
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  درتي جوج fields بنفس الـ name ولا نسيتي الـ key: الـ values كيتخلطو والـ React كيعطي warning ديال list. الحل: كل عنصر فـ FIELDS عندو name وحيد ودوزو كـ key للـ Field.
+</div>
 
 <h2>5 · ممارسة retrieval</h2>
 <p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>

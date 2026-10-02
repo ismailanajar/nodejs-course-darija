@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 12 — فـ production: Express كيقدم الـ React build</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 12 · الكورس section 09</p>
+  <h1>فـ production: Express كيقدم الـ React build</h1>
+  <p class="dek">فـ development عندك CRA dev server قدام الـ Express — أما فـ production ما كاين حتى حاجة قدامو، بحال شي حد كيشغل الـ API ديالو وينسى الـ UI. غادي نربطهم فـ server واحد.</p>
+  <p class="meta">~12 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تعرف تشرح وتصحّح الـ deployment ديال أي React + Express app: علاش خاصك <strong>build step</strong>، فين كتدخل <code>express.static</code> و الـ <strong>catch-all route</strong>، وعلاش الـ refresh ديال <code>/surveys</code> فـ production كيرجع الـ page بدل <strong>404</strong>. هادي هي النقطة اللي كتفرق بين "خدام على laptop" و "متعامل مع client".
+</div>
+
+<h2>1 · المشكلة: شكون كيقدم الـ HTML؟</h2>
+<p>فـ development، الـ Create React App كيخدم بـ <strong>dev server</strong> قدام الـ Express: هو اللي كيرجع الـ HTML والـ JS، والـ Express غير كيقدم الـ API. ولكن فـ production، ما كاين حتى <strong>سيرفر واحد</strong>: السيرفر ديالنا — وأول deployiyين فالكورس كانو كيقدرو غير الـ Express، الـ React app ما كانتش داخلة.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>يعني التحدي هو: كيفاش نفس الـ <code>index.js</code> يجاوب على جوج أنواع ديال requests؟</p>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">GET /api/surveys<small>route handler</small></div>
+    <div class="flow-arrow">·</div>
+    <div class="flow-node">GET /static/js/main.js<small>ملف من client/build</small></div>
+    <div class="flow-arrow">·</div>
+    <div class="flow-node">GET /surveys<small>index.html &rarr; React router</small></div>
+  </div>
+</div>
+
+<h2>2 · جوج أسطر: static + catch-all</h2>
+<p>الكل كيتصاوب تحت <code>if (process.env.NODE_ENV === 'production')</code> — هادي هي الـ environment variable اللي كيضبطها Heroku (ولكلاً Platform) بوحدو، يعني هاد الكود ما كيتحمّلش فـ local.<span class="cite"><a href="#n2">[2]</a></span></p>
+<pre dir="ltr"><code>if (process.env.NODE_ENV === 'production') {
+  // 1) أي ملف داخل client/build → رد بيه مباشرة
+  app.use(express.static('client/build'));
+
+  // 2) إلا ما فهمناش الـ route → index.html (React router غادي يتكفّل)
+  const path = require('path');
+  app.get('*', (req, res) =&gt; {
+    res.sendFile(path.resolve(__dirname, 'client', 'build', 'index.html'));
+  });
+}</code></pre>
+<ul>
+  <li>الأول كيجيب الملفات المحددة (مثلاً <code>client/build/static/js/main.js</code>).<span class="cite"><a href="#n2">[2]</a></span></li>
+  <li>الثاني هو الـ <strong>catch-all</strong>: إلا ما لقاش حتى route handler وما لقاش حتى ملف، كيعطيك <code>index.html</code> وكيخلّي <strong>React router</strong> هو اللي يفهم الـ path.<span class="cite"><a href="#n2">[2]</a></span></li>
+  <li><strong>الترتيب هو القانون</strong>: Express كيبدا من الفوق — API routes &rarr; الملفات ديال <code>client/build</code> &rarr; فالأخير الـ catch-all.<span class="cite"><a href="#n2">[2]</a></span></li>
+</ul>
+
+<h2>3 · الـ build step والـ deploy</h2>
+<p>الـ <code>client/build</code> ماشي موجود بالسحر: كيتصاوب بـ <code>npm run build</code> من داخل مجلد <code>client</code>، وكيخلي bundle واحد ديال JS + CSS. <strong>كل تبديل فـ <code>src</code> خاصو يتبعو build جديد</strong> قبل ما تدفع.<span class="cite"><a href="#n3">[3]</a></span></p>
+<p>المسار ديال الـ deploy اللي اختارو فالكورس: commit &rarr; push &rarr; الـ platform كتنصب الـ dependencies ديال السيرفر &rarr; من بعد كتصاوب <strong>client build</strong> (اختارو "option number two" اللي كتزيد الـ build step فالـ deploy نفسها).<span class="cite"><a href="#n4">[4]</a></span></p>
+<pre dir="ltr"><code>"heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix client &amp;&amp; npm run build --prefix client"</code></pre>
+<p>فـ Render (البديل اللي كيتحط فـ ملاحظات الكورس)، كتبدّل الـ Build Command من <code>npm install</code> إلى <code>npm install &amp;&amp; npm run heroku-postbuild</code> — نفس الفكرة: <strong>الـ server deps قبل، الـ client build من بعد</strong>.<span class="cite"><a href="#n5">[5]</a></span></p>
+<p>وإلا طاح الـ build بـ أخطاء ديال versions (مثلاً <code>SyntaxError: Unexpected token</code> من <code>@hapi</code>): المشكل هو <strong>Node version mismatch</strong> بين جوج machines — الحل: حيّد <code>package-lock.json</code> (client + server)، استعمل LTS version ديال Node، وطابق <code>engines</code> فـ <code>package.json</code>.<span class="cite"><a href="#n6">[6]</a></span></p>
+
+<h2>4 · الاختبار: علاش refresh كيخدم</h2>
+<p>ملي كتكتب <code>/surveys</code> فـ address bar، هادي هي <strong>full page reload</strong> — request جديدة كتمشي للسيرفر بلا ما يمشي معك شي حاجة من الـ SPA. السيرفر ما لقاش ملف اسمو <code>build/surveys</code>، وفالأخير كيرجع <strong>index.html document</strong>، الـ body كيحمّل الـ React app، ومن بعد <strong>client-side router</strong> هو اللي كيتسلّم الـ route.<span class="cite"><a href="#n7">[7]</a></span></p>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">address bar /surveys<small>full reload</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">Express<small>ما لقاش ملف</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">index.html<small>catch-all</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">React router<small>كيرسم SurveyList</small></div>
+  </div>
+</div>
+<p class="mono" style="font-size:0.8rem;color:var(--ink-faint)">المرجع: <a href="../reference/0004-stripe-deploy.html">Reference 0004 — Stripe &amp; Deploy Cheatsheet</a></p>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> شنو كيدير <code>app.use(express.static('client/build'))</code>؟</p>
+  <button class="opt" data-correct>كيقلب على الملف المطلوب داخل client/build</button>
+  <button class="opt">كيصاوب الـ build ديال React app</button>
+  <button class="opt">كيصيفط كامل requests جديدة للـ MongoDB</button>
+  <button class="opt">كيعطّل كامل الـ route handlers ديالنا</button>
+  <p class="explain">هادي هي الـ static middleware: إلا كان شي ملف كيطابق الـ request داخل <code>client/build</code>، كيرجعو مباشرة — كتعطي الملفات قبل ما توصل للـ catch-all.<span class="cite"><a href="#n2">[2]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> شنو كيوقع ملي الـ user يكتب <code>/surveys</code> فـ address bar فـ production؟</p>
+  <button class="opt">السيرفر كيرجع 404 حيت ما عندوش الملف</button>
+  <button class="opt">CRA dev server كيرجع الـ page كاملة</button>
+  <button class="opt" data-correct>السيرفر كيرجع index.html و React router كيكمل</button>
+  <button class="opt">الـ MongoDB كيرجع كامل الـ surveys collection</button>
+  <p class="explain">هادي هي full page reload: ما كاين حتى route handler لـ <code>/surveys</code> وما كاينش ملف بنفس الاسم، وفالأخير الـ catch-all كيرجع <code>index.html</code> وكيسلّم الـ routing للـ React.<span class="cite"><a href="#n7">[7]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> علاش خاص <code>npm run build</code> قبل ما ندفعو لـ production؟</p>
+  <button class="opt">حيت الـ Stripe key كتسجل فـ build</button>
+  <button class="opt">حيت خاصنا نحددو كامل الـ Node version</button>
+  <button class="opt">حيت الـ client خاصو غير bundle واحد</button>
+  <button class="opt" data-correct>حيت السيرفر ما كيقراش ملفات ديال src</button>
+  <p class="explain">السيرفر ما كيعرفش يقرا <code>src/*.jsx</code> — هو كيقدم غير الـ ملفات الجاهزة من <code>client/build</code>، وملف جديد فكل مرة تبدل <code>src</code>.<span class="cite"><a href="#n3">[3]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> مراجعة: من درس Stripe، فين كيتسجل number ديال credits ملي الـ charge ينجح؟</p>
+  <button class="opt">فـ billing routes بـ credits جديدة وحدة</button>
+  <button class="opt" data-correct>فـ user model بـ default ديال 0</button>
+  <button class="opt">فـ Stripe dashboard وحدها بلا save ديالنا</button>
+  <button class="opt">فـ user model بـ property ديال 5</button>
+  <p class="explain">الـ user model عندو <code>credits</code> بـ <code>default: 0</code>، ومن بعد الـ handler كيزيد <code>5</code> وكيدير <code>await save()</code> — يعني الـ DB هي source of truth ديال الرصيد.<span class="cite"><a href="#n8">[8]</a></span></p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0004-stripe-deploy.html">المرجع 0004</a><span>·</span>
+    <a href="../lessons/0011-stripe-payments.html">الدرس السابق 11</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>13 — Mongoose ديال survey: subdocs و relationship fields</strong> (كيفاش نصمّمو الداتا ديال الـ survey).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>09. Back End to Front End Routing in Production/01. Express with Create-React-App in Production.vtt</code> (00:16–01:04) — earlier deploys shipped only Express; dev server sits in front</li>
+  <li id="n2"><code>09. Back End to Front End Routing in Production/02. Routing in Production.vtt</code> (00:00–08:08) — NODE_ENV guard, express.static('client/build'), app.get('*') catch-all, order of operations</li>
+  <li id="n3"><code>09. Back End to Front End Routing in Production/03. Deployment Options.vtt</code> (00:22–01:11) — npm run build in client dir, rebuild after every src change</li>
+  <li id="n4"><code>09. Back End to Front End Routing in Production/04. Adding in a Build Step.vtt</code> (00:10–01:01) — commit &rarr; push &rarr; install server deps &rarr; client build step, "option number two"</li>
+  <li id="n5"><code>09. Back End to Front End Routing in Production/05. [Render] Postbuild and Deployment.html</code> — heroku-postbuild script, Render build command change</li>
+  <li id="n6"><code>09. Back End to Front End Routing in Production/06. Fixes for Failing Heroku Builds.html</code> — Node version mismatch, delete package-lock.json, LTS Node, engines</li>
+  <li id="n7"><code>09. Back End to Front End Routing in Production/07. Testing Deployment.vtt</code> (00:19–01:08) — full page reload for /surveys, Express serves index.html, client router handles</li>
+  <li id="n8"><code>08. Handling Payments/17. Adding Credits to a User.vtt</code> (00:00–07:26) — credits Number default 0, +5, await save()</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 20 — الـ dashboard: جلب و عرض قائمة surveys</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 20 · Course sections 13</p>
+  <h1>الـ dashboard: جلب و عرض قائمة surveys</h1>
+  <p class="dek">آخر ميزة كبيرة فالتطبيق: user كيفتح الـ dashboard خاصو يشوف قائمة ديال surveys اللي صاوب هو بوحدو — من الـ route ديال Express، مرورا بـRedux، حتى لـcards فـReact. هاد الدرس كيجمع الطريق كاملة اللي تعلمناها.</p>
+  <p class="meta">~12 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تسد الدورة كاملة: <code>GET /api/surveys</code> مقصور على المستعمل الحالي، response خفيف بلا الـ recipients، action creator + reducer فـRedux، و <code>SurveyList</code> كتقلب الـ JSON لـcards مرتبة بالجديد فوق.
+</div>
+
+<h2>1 · الـ backend: غير surveys ديالي</h2>
+<p>الطلب واضح: ملي user يفتح الـ dashboard، خاص الـ React يدير request للـ API ويجيب <strong>غير الـ surveys اللي صاوبها هو</strong> — ماشي الكل.<span class="cite"><a href="#n1">[1]</a></span> المكوّنات:<span class="cite"><a href="#n1">[1]</a></span></p>
+<ul>
+  <li>الـ route: <code>app.get('/api/surveys', requireLogin, handler)</code> — المستعمل الحالي كيتحط من <strong>passport</strong> فوق <code>req.user</code>، وحنا خاصنا نتأكدو أن اللي طالب مسجل دخول (نفس الـ middleware ديال <code>requireLogin</code> اللي كنستعملوه من زمان، كنديروه ثاني argument للـ handler).<span class="cite"><a href="#n1">[1]</a></span></li>
+  <li>الـ survey model عندو خاصية <code>_user</code> فيها الـ ID ديال اللي صاوب الـ survey — داكشي علاش الاستفسار هو <code>Survey.find({ _user: req.user.id })</code>.<span class="cite"><a href="#n1">[1]</a></span></li>
+  <li>الـ query غير تنينة: <code>const surveys = await Survey.find(...)</code> و <code>res.send(surveys)</code> — وعليه <code>async</code> على الـ handler.<span class="cite"><a href="#n1">[1]</a></span></li>
+</ul>
+<p>المشكلة اللي كيبان من تاني: كل survey كيجيب معاها الـ <code>recipients</code> ديالها — وممكن يكونو آلاف. الـ mockup ديالنا أصلا ما كيعرضش أسماء الأفراد، وماشي معقول نصيفط عشرات الميغا باش نعرض عدد ديال cards.<span class="cite"><a href="#n2">[2]</a></span></p>
+
+<h2>2 · whitelist: <code>.select({ recipients: false })</code></h2>
+<p>الحل جا من الـ docs ديال Mongoose: الـ query اللي كيرجع من <code>Survey.find()</code> هو object، وعليه تقدر تسلسل <code>.select()</code> — والاسم ديالها فالـ docs هو <strong>projection</strong> (يعني: شنو تدخل و شنو تحيد من النتيجة).<span class="cite"><a href="#n3">[3]</a></span> كاين جوج syntax (سلسلة بـ<code>-fieldname</code> ولا object بـ<code>1</code>/<code>0</code>)، وحنا استعملنا object:</p>
+<pre><code>const surveys = await Survey
+  .find({ _user: req.user.id })
+  .select({ recipients: false });</code></pre>
+<p>يعني: <strong>ما تعطينيش الـ recipients</strong> ملي تجيب ليا الـ surveys.<span class="cite"><a href="#n3">[3]</a></span></p>
+<p><strong>الاختبار:</strong> من الكونسول ديال المتصفح (وانت مسجل دخول) <code>axios.get('/api/surveys')</code> — خاصك ترجع <strong>200</strong>، وفالـ Preview غادي تشوف كل survey بـ<code>body</code>، <code>dateSent</code>، <code>lastResponded</code>، <code>no</code>، <code>yes</code>، <code>subject</code> و <code>title</code> — بلا حتى email.<span class="cite"><a href="#n4">[4]</a></span></p>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">GET /api/surveys<small>Express + requireLogin</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">fetchSurveys<small>action creator</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">SurveyList<small>connect + map</small></div>
+  </div>
+</div>
+
+<h2>3 · نوصّلو الـ data بـRedux</h2>
+<p>نفس الدورة اللي كنعاودوها من البداية ديال الكورس:<span class="cite"><a href="#n5">[5]</a></span></p>
+<ul>
+  <li><strong>type:</strong> <code>export const FETCH_SURVEYS = 'fetch_surveys'</code> فـ<code>actions/types.js</code>.<span class="cite"><a href="#n5">[5]</a></span></li>
+  <li><strong>action creator:</strong> <code>fetchSurveys()</code> — ماعندو حتى argument، كيدير <code>await axios.get('/api/surveys')</code> ومن بعد <code>dispatch({ type: FETCH_SURVEYS, payload: res.data })</code> (الـ payload هو array ديال الـ surveys).<span class="cite"><a href="#n5">[5]</a></span></li>
+  <li><strong>reducer:</strong> <code>surveysReducer</code> جديد — الـ state الافتراضي ديالو <strong>array خاوية</strong> (يعني ملي يحل التطبيق الـ surveys كيولّيو خاويين)، وكيجاوب على <code>FETCH_SURVEYS</code> بـ<code>return action.payload</code>.<span class="cite"><a href="#n5">[5]</a></span></li>
+  <li><strong>combineReducers:</strong> نزيدوه بـ<code>surveys: surveysReducer</code> — وهاد هو السبب علاش من بعد كنقراو <code>state.surveys</code>.<span class="cite"><a href="#n5">[5]</a></span></li>
+</ul>
+
+<h2>4 · React: مكوّن منفصل + cards</h2>
+<p>قرار تصميم مهم: الـ <strong>Dashboard ما خاصوش</strong> يتكلف بالجلب ولا بالعرض. حنا صاوبنا مكوّن جديد <code>components/surveys/SurveyList.js</code> — هو اللي كيجيب وكيعرض، والـ Dashboard غير كيفتّحو.<span class="cite"><a href="#n6">[6]</a></span> داخل <code>SurveyList</code>:<span class="cite"><a href="#n6">[6]</a></span></p>
+<ul>
+  <li><code>connect(mapStateToProps, { fetchSurveys })</code> — الـ <code>mapState</code> غير كيرجع <code>state.surveys</code> (بـshorthand: <code>{ surveys }</code>).<span class="cite"><a href="#n6">[6]</a></span></li>
+  <li><code>componentDidMount()</code> فيه <code>this.props.fetchSurveys()</code> — أي ملي المكوّن يتعرض للمرة الأولى.<span class="cite"><a href="#n6">[6]</a></span></li>
+</ul>
+<p><strong>العرض:</strong> HTML ديال <strong>Materialize cards</strong> — ماشي الـ divs ديال <code>row</code> و <code>col</code> اللي كيقدرو يضيّقو العرض، غير من <code>card ...</code> لتحت. لكل survey وحدة:<span class="cite"><a href="#n7">[7]</a></span></p>
+<pre><code>this.props.surveys.map(survey =&gt; (
+  &lt;div key={survey._id} className="card darken-1"&gt;
+    &lt;div className="card-content"&gt;
+      &lt;span className="card-title"&gt;{survey.title}&lt;/span&gt;
+      &lt;p&gt;{survey.body}&lt;/p&gt;
+      &lt;p className="right"&gt;Sent on: {new Date(survey.dateSent).toLocaleDateString()}&lt;/p&gt;
+    &lt;/div&gt;
+    &lt;div className="card-action"&gt;
+      &lt;a&gt;Yes: {survey.yes}&lt;/a&gt;&lt;a&gt;No: {survey.no}&lt;/a&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+))</code></pre>
+<ul>
+  <li><strong><code>key={survey._id}</code>:</strong> داخل الكونسول ديال React والـ raw Mongo خاصك <code>_id</code> (الـ <code>id</code> النظيفة هي ديال Mongoose).<span class="cite"><a href="#n7">[7]</a></span></li>
+  <li><strong>التاريخ:</strong> ملي يجي من الـ DB للمتصفح كيولي string خام (ماشي Date object) — داكشي علاش <code>new Date(survey.dateSent).toLocaleDateString()</code>.<span class="cite"><a href="#n7">[7]</a></span></li>
+  <li><strong>الـ yes/no:</strong> استعملنا <code>&lt;a&gt;</code> باش ناخذو الـ styling ديال Materialize مع أن هادي ماشي navigation حقيقية (hack صغيّر مقبول هاد المرة).<span class="cite"><a href="#n7">[7]</a></span></li>
+</ul>
+<p><strong>الترتيب:</strong> الـ surveys كيجيو بالأقدم فوق — باش الجدد يبانو فوق، زدنا <code>.reverse()</code> قبل ما نـ<code>map</code>و (بلا ما نبدّلو الـ array الأصلية بـsort). وباش النموذج يبدو حيو، بدّلو الـ vote counts يدويا من الـ MongoDB UI.<span class="cite"><a href="#n8">[8]</a></span></p>
+<p><strong>النشر:</strong> <code>git status</code> &rarr; <code>git add .</code> &rarr; <code>git commit -m "users can see survey results"</code> &rarr; <code>git push heroku master</code>. وتذكير مهم: الـ webhook ديال SendGrid باقي كيشير للـ tunnel ديال laptop ديالك — والـ SendGrid ما كيقبلش جوج webhooks فـحساب واحد، ف إلا بغيتي كلشي خدام فـproduction خاصك تبدّل الـ URL ولا تدير حساب ثاني.<span class="cite"><a href="#n9">[9]</a></span></p>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> علاش زدنا <code>.select({ recipients: false })</code> على الـ query؟</p>
+  <button class="opt" data-correct>لأن الـ dashboard ما محتاجش emails ديالهم</button>
+  <button class="opt">لأن الـ recipients مخفيين من قاعدة البيانات</button>
+  <button class="opt">لأن الـ API خاصو يصاوب JSON أصغر</button>
+  <button class="opt">لأن الـ mongoose كيحتاج index خاص جديد</button>
+  <p class="explain">الـ dashboard غير كيعرض counts و titles — والـ recipients ممكن يكونو آلاف لكل survey. الـ projection هي اللي كتمنع النقل ديال البيانات اللي مامستعمليناش.<span class="cite"><a href="#n3">[3]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> وين بالضبط خاصك تبدّل الـ webhook URL ملي بغيتي يخدم فـproduction؟</p>
+  <button class="opt">فـ Mail Settings ديال SendGrid dashboard</button>
+  <button class="opt" data-correct>فـ Event Notification HTTP POST URL</button>
+  <button class="opt">فـ env ديال MongoDB connection string</button>
+  <button class="opt">فـ index.js ديال الـ Express server</button>
+  <p class="explain">الـ Event Notification هو اللي كيحدد فين يصيفط SendGrid الـ events — والـ tunnel ديال الـ dev باقي كيشير للـ laptop، فخاصك الـ URL ديال الـ app المنشورة.<span class="cite"><a href="#n9">[9]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> شنو كيدير <code>componentDidMount()</code> داخل <code>SurveyList</code>؟</p>
+  <button class="opt">كيصاوب الـ JSX ديال كل survey card</button>
+  <button class="opt">كيقلب ترتيب الـ surveys من الأقدم للجديد</button>
+  <button class="opt">كيحل الـ dashboard بلا حتى request أصلا</button>
+  <button class="opt" data-correct>كيصيفط fetchSurveys action creator ديال الـ Redux</button>
+  <p class="explain">الـ lifecycle method كتنادي <code>this.props.fetchSurveys()</code> أول ما المكوّن يتعرض — وهاد هو الدافع اللي كيحيّي الـ request ديال <code>GET /api/surveys</code>.<span class="cite"><a href="#n6">[6]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> مراجعة: علاش خاص الـ query ديال webhook تبقى كتخدم من داخل Mongo بلا نقل البيانات؟</p>
+  <button class="opt">بلا ما نوقفو السيرفر ديال SendGrid</button>
+  <button class="opt">باش نقصو عدد connections ديال MongoDB</button>
+  <button class="opt" data-correct>باش البحث و التسجيل يديروهم Mongo</button>
+  <button class="opt">بما أن الـ data ديالنا صغيرة</button>
+  <p class="explain">البحث و التسجيل داخل Mongo بزاف أسرع من نقل الـ survey كامل للـExpress، تعديلو، ومن بعد ترجعي ترسلو — داكشي علاش استعملنا <code>updateOne</code>.<span class="cite"><a href="#n10">[10]</a></span></p>
+</div>
+
+<div class="callout">
+  <span class="label">هادا آخر درس</span>
+  هادي هي آخر محطة فـمسار الـ lessons: دابا عندك تطبيق كامل (OAuth &rarr; credits &rarr; surveys &rarr; emails &rarr; webhooks &rarr; dashboard). شوف <a href="../MISSION.md">MISSION.md</a> و <a href="../RESOURCES.md">RESOURCES.md</a> باش تعرف شنو الخطوة الجاية.
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0007-webhook-results.html">المرجع 0007</a><span>·</span>
+    <a href="../lessons/0019-webhook-results-query.html">الدرس 19</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a><span>·</span>
+    <a href="../RESOURCES.md">الموارد</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">هادا آخر درس فالسلسلة — ماكاينش درس 0021.</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>13. The Home Stretch!/01. Fetching a List of Surveys.vtt</code> (00:27–01:03, 03:18–06:49) — GET /api/surveys for current user only, req.user, _user property, await Survey.find, requireLogin as second arg, res.send</li>
+  <li id="n2"><code>13. The Home Stretch!/01. Fetching a List of Surveys.vtt</code> (06:59–08:51) — recipients list can be tens of thousands, mockup doesn't show individual emails, avoid shipping megabytes</li>
+  <li id="n3"><code>13. The Home Stretch!/02. Whitelisting Model Fields.vtt</code> (03:31–05:19, 06:05–09:11) — Query#select projection docs, object syntax, { recipients: false }</li>
+  <li id="n4"><code>13. The Home Stretch!/03. Testing Surveys Endpoint.vtt</code> (00:40–01:28) — axios.get('/api/surveys') returns 200, preview shows body, dateSent, lastResponded, no, yes, subject, title</li>
+  <li id="n5"><code>13. The Home Stretch!/04. Wiring Surveys Up to Redux.vtt</code> (00:30–05:40) — FETCH_SURVEYS type, fetchSurveys async action creator with axios.get and payload res.data, surveysReducer default empty array, combineReducers wiring</li>
+  <li id="n6"><code>13. The Home Stretch!/05. Wiring React to Redux.vtt</code> (00:16–04:37, 04:52–05:16) — separate SurveyList component, Dashboard only shows it, connect + mapStateToProps state.surveys, componentDidMount calls fetchSurveys</li>
+  <li id="n7"><code>13. The Home Stretch!/06. Rendering a List of Surveys.vtt</code> (00:33–06:15) — Materialize cards HTML, skip row/column divs, key survey._id, title/body, new Date(...).toLocaleDateString(), card-action anchor hack for yes/no</li>
+  <li id="n8"><code>13. The Home Stretch!/07. Reversing the Survey List.vtt</code> (00:10–01:33) — oldest surveys shown first, .reverse() before map, manually editing vote counts in Mongo for demo</li>
+  <li id="n9"><code>13. The Home Stretch!/08. Expanding the App.vtt</code> (00:16–02:56) — git status/add/commit "users can see survey results"/push heroku master, webhook still points to local tunnel, SendGrid disallows multiple webhooks</li>
+  <li id="n10"><code>12. Handling Webhook Data/16. Bad Mongoose Queries.vtt</code> (07:11–08:43) — minimize data pulled from DB, execute search and update logic inside Mongo (مراجعة من الدرس 19)</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

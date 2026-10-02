@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 9 — React Router و Header: التصفح و current user</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 9 · Course sections 07</p>
+  <h1>React Router و Header: التصفح و current user</h1>
+  <p class="dek">دابا خاصو للـ app وجه: routes بـ <code>exact</code>، Header كيبان فكل بلاصة بـ Materialize، وخطة <code>fetchUser</code> باش نعرفو واش الـ user مسجّل.</p>
+  <p class="meta">~12 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تقدر تسيّر أي تصفح فـ React app: <strong><code>BrowserRouter</code> + <code>Route</code></strong> مع <strong><code>exact</code></strong> باش ما يتراكبوش الـ components، <strong>Header كيبان دائما</strong> بـ Materialize عبر Webpack import، و الخطة الكاملة ديال <strong><code>GET /api/current_user</code></strong>.
+</div>
+
+<h2>1 · React Router: الأدوات والقواعد</h2>
+<p>كل <code>Route</code> هو <strong>زاوج بين rule</strong> — عنوان اللي ممكن يزورو الـ user والـ components اللي خاصهم يبانو فالشاشة. وكلشي كنكتبوه فـ <code>App.js</code>، حيت هي مسؤولة على الـ view layer، أما <code>index.js</code> فكيبقى Redux setup.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>الـ import جاي من <code>react-router-dom</code>: كاينة ثلاث مكتبات (dom، native، core) — <strong>غير الـ dom هي اللي كيهمنا</strong> فهاد النوع ديال التطبيقات.<span class="cite"><a href="#n1">[1]</a></span> وجوج أدوات:</p>
+<ul>
+  <li><strong><code>BrowserRouter</code></strong> — "الدماغ" ديال React Router: كيقرا الـ URL الحالي وكيبدّل الـ components اللي ظاهرين.<span class="cite"><a href="#n1">[1]</a></span></li>
+  <li><strong><code>Route</code></strong> — الـ rule نفسها: <code>path</code> + <code>component</code>.<span class="cite"><a href="#n1">[1]</a></span></li>
+</ul>
+<p>جوج قواعد خارجية قبل ما نكتب: (1) الـ <code>BrowserRouter</code> كيقبل <strong>child واحد فقط</strong> — جوج div كيعطيك error، علّاش كنلفّو الـ routes كاملين فـ div وحدة.<span class="cite"><a href="#n2">[2]</a></span> (2) الـ <code>path="/"</code> كيعني الـ root route ديال التطبيق — <strong>عمرو ماكتبو الـ domain</strong> (ماشي <code>emaily.com</code> ولا <code>herokuapp.com</code>، غير مسار الـ URL).<span class="cite"><a href="#n2">[2]</a></span></p>
+<pre dir="ltr"><code>import { BrowserRouter, Route } from 'react-router-dom';
+
+&lt;div className="container"&gt;
+  &lt;BrowserRouter&gt;
+    &lt;div&gt;
+      &lt;Header /&gt;
+      &lt;Route exact path="/" component={Landing} /&gt;
+      &lt;Route exact path="/surveys" component={Dashboard} /&gt;
+      &lt;Route exact path="/surveys/new" component={SurveyNew} /&gt;
+    &lt;/div&gt;
+  &lt;/BrowserRouter&gt;
+&lt;/div&gt;</code></pre>
+
+<h2>2 · قاعدة <code>exact</code> والـ components الدائمين</h2>
+<p>إلا مشيتي لـ <code>/surveys</code> ونتفاجأ: كتشوف <strong>landing + dashboard مع بعضياتهم</strong>! السبب: الـ route ديال <code>/</code> كيقبل بـ <strong>greedy matching</strong> — السلسلة <code>/</code> موجودة داخل <code>/surveys</code>، فـ React Router كيقول موجود ويرسم الـ Landing.<span class="cite"><a href="#n3">[3]</a></span> الحل: prop ديال <strong><code>exact</code></strong> (= <code>exact={true}</code>) اللي كيقول "خاص المسار يطابق بالضبط".<span class="cite"><a href="#n3">[3]</a></span></p>
+<p>نفس المشكل كيتكرر مع <code>/surveys/new</code>: كيتطابق مع <code>/surveys</code> (موجودة فـ البداية)، فكيتبان الـ dashboard مع الـ SurveyNew — وهادا ماشي اللي بغينا، يعني الـ dashboard زادة خاصها <code>exact</code>.<span class="cite"><a href="#n4">[4]</a></span></p>
+<p>و بخصوص <strong>الـ Header</strong>: ماشي هو الطريق — كنحطو component عادي فوق الـ routes كاملين فـ نفس الـ div اللي داخل <code>BrowserRouter</code>، وهكذا <strong>كيبان دائما</strong> فكل صفحة، ومحتواه هو اللي غادي يتبدّل من بعد حسب auth.<span class="cite"><a href="#n4">[4]</a></span></p>
+
+<h2>3 · Materialize: من link tag حتى Webpack import</h2>
+<p>الـ Header خرج لملف خاص <code>components/header.js</code> كـ <strong>class component</strong>، ومن بعد درنا install ديال <strong>Materialize CSS</strong> كـ npm module من داخل <code>client/</code> (ماشي بـ link tag و CDN).<span class="cite"><a href="#n5">[5]</a></span></p>
+<p>كيفاش كنوصلو للـ CSS ديال module؟ <strong>Webpack</strong> — اللي جا معا <code>create-react-app</code> كـ module loader: كيجمع ملفات وحدة وحدة لخرج ملفات output، وكيعرف حتى يتعامل مع CSS: ملي كتشوف import ديال ملف CSS، كيتعامل معاه CSS ماشي JavaScript.<span class="cite"><a href="#n6">[6]</a></span></p>
+<pre dir="ltr"><code>// src/index.js — فـ أعلى الملف
+import 'materialize-css/dist/css/materialize.min.css';</code></pre>
+<p>ثلاث تفاصيل: <strong>خاص extension</strong> (<code>.css</code> ماشي كيف الـ JS اللي كيتخمّم)، <strong>بلا relative path</strong> (webpack كيفهم بلي كنعنيو npm module من <code>node_modules</code>)، و <strong>ما تحتاجش variable</strong> — الـ import بوحدو كافٍ، وخاص restart ديال الـ server.<span class="cite"><a href="#n6">[6]</a></span></p>
+<p>الـ markup ديال الـ navbar جا من <strong>docs ديال Materialize</strong> (navbar component): <code>nav</code> فيه <code>div.nav-wrapper</code>، وداخلو anchor بـ <code>left brand-logo</code> (السمية ديال التطبيق)، وإلى جنبها <code>ul.right</code> فيها <code>li</code> ديال زر الـ login.<span class="cite"><a href="#n7">[7]</a></span> وفـ React: <strong><code>className</code> ماشي <code>class</code></strong>.<span class="cite"><a href="#n7">[7]</a></span></p>
+<p>و ملاحظة خفية بزاف: Materialize كتوقع بلي عندك <strong>root element بـ class <code>container</code></strong> — علّاش كنزيدوه للـ top div ديال <code>App.js</code>، وإلا الـ navbar كيلزق على حافة الشاشة.<span class="cite"><a href="#n8">[8]</a></span></p>
+
+<h2>4 · current user API: الخطة ديال <code>fetchUser</code></h2>
+<p>الـ header دابا فيه مشاكل تلاتة: الـ logo ماشي clickable، زر الـ login كيبدا وما كيدير والو، والمحتوى ما عادش يتبدل حسب auth.<span class="cite"><a href="#n8">[8]</a></span> والحل كيبدا من عند السيرفر: <strong>عندنا route جاهز <code>GET /api/current_user</code></strong> اللي كيجاوب واش الـ user مسجّل.<span class="cite"><a href="#n9">[9]</a></span></p>
+<p>الخطة كاملة (غادي نبنيوها فالدرس الجاي خطوة بخطوة): <strong>App component</strong> — اللي هو الـ route component — كينادي action creator <code>fetchUser</code> أول ما يboot؛ داخلها <strong>axios</strong> كتصاوب Ajax request لـ <code>/api/current_user</code>؛ ومن بعد <strong>Redux Thunk</strong> كيسيّر الـ dispatch ديال الـ action للم reducer كاملين؛ الـ <code>authReducer</code> كيحدث state؛ ومن بعد الـ header كيتصل بالـ store ويتبدّل محتواه.<span class="cite"><a href="#n9">[9]</a></span></p>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">App (on boot)<small>fetchUser()</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">axios<small>GET /api/current_user</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">thunk &rarr; reducer<small>state.auth</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">Header<small>connect + re-render</small></div>
+  </div>
+</div>
+<p>و عمليا، غادي نحتاجو: نثبتو <code>axios</code> و <code>redux-thunk</code> من داخل <code>client/</code>، ونزيدو <strong>proxy rule ثانية</strong> باش <code>/api/*</code> (و <code>/auth/google</code>) يتوجهو للـ Express على <code>localhost:5000</code>.<span class="cite"><a href="#n9">[9]</a></span></p>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> ملّى مشيتي لـ <code>/surveys</code> وشفتي landing + dashboard مع بعضياتهم، شنو السبب؟</p>
+  <button class="opt">react-router ما فهمش الـ route أصلا</button>
+  <button class="opt">السيرفر رجّع جوج components مع بعضياتهم</button>
+  <button class="opt">الـ Header مكتوب مرتين فـ App</button>
+  <button class="opt" data-correct>الـ Route كيطابق greedy على المسار</button>
+  <p class="explain">الـ route ديال <code>/</code> كيقبل الطابق الـ greedy: السلسلة <code>/</code> موجودة داخل <code>/surveys</code>، فـ React Router كيعتقد بلي الـ Landing خاصها تبان — والحل هو <code>exact</code>.<span class="cite"><a href="#n3">[3]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> شنو المهمة ديال الـ prop <code>exact</code>؟</p>
+  <button class="opt">كيخلّي كامل الـ component كيريندر بسرعة</button>
+  <button class="opt" data-correct>كيمنع الطابق الـ greedy على المسار</button>
+  <button class="opt">كيصيفط كامل route جديد للسيرفر ديالنا</button>
+  <button class="opt">كيمسح كامل الـ routes القديمة كلها</button>
+  <p class="explain"><code>exact</code> كيحمّل المسار يطابق بالضبط — بلا منه، <code>/surveys</code> كتقبل منطاق <code>/</code> و <code>/surveys/new</code>، ونتا كتشوف components ما طلبتيهمش.<span class="cite"><a href="#n4">[4]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> علاش حطينا <code>className="container"</code> فوق الـ top div ديال App؟</p>
+  <button class="opt" data-correct>علاش materialize بغا root element بـ container</button>
+  <button class="opt">باش الـ React يعرف شكون الأب ديالو</button>
+  <button class="opt">باش نخفي كامل الـ routes اللي مامسجّلينش</button>
+  <button class="opt">باش نزيدو spacing بين الـ API calls</button>
+  <p class="explain">Materialize كتوقع بلي عندك root element فيه <code>container</code> — بلاه الـ navbar كيلزق على حافة الشاشة والتخطيط ما كيتضمنش.<span class="cite"><a href="#n8">[8]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> مراجعة: من الدرس 8، الـ key اللي تعطيه لـ <code>combineReducers({ auth: ... })</code> فين كيسكن فالنتيجة؟</p>
+  <button class="opt">فـ node_modules باش يتload مع كامل المشروع</button>
+  <button class="opt">فـ MongoDB باش يتقرا من الـ server</button>
+  <button class="opt" data-correct>فـ كامل state object تحت سميتو auth</button>
+  <button class="opt">فـ كامل package.json تحت scripts كاملة ديالو</button>
+  <p class="explain">القاعدة: keys ديال <code>combineReducers</code> = keys ديال state object — يعني القيمة اللي كيصنعها <code>authReducer</code> كتجي فـ <code>state.auth</code>، وهادي هي اللي غادي يشدّها الـ header بـ <code>mapStateToProps</code>.</p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0003-client-redux-architecture.html">المرجع 0003</a><span>·</span>
+    <a href="0008-redux-auth-store.html">الدرس السابق 8</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>10 — Redux Thunk و fetchUser: أول API call من الـ client</strong> (القسم 07، عملي).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>07. Developing the Client Side/14. React Router Setup.vtt</code> — different content per route, a route pairs an address with components, App.js holds view-layer setup while index.js holds Redux, import react-router-dom (dom, native, core libraries), BrowserRouter as the brains and Route as the rule</li>
+  <li id="n2"><code>07. Developing the Client Side/15. Route Configuration.vtt</code> — keep the top-level div for CSS, BrowserRouter accepts at most one child so routes are wrapped in a single div, path "/" is the root route and the domain is never written</li>
+  <li id="n3"><code>07. Developing the Client Side/16. Matching Routes with Exact.vtt</code> — route for /surveys showing Dashboard, greedy matching displays landing and dashboard together, fixed with the exact prop</li>
+  <li id="n4"><code>07. Developing the Client Side/17. Always Visible Components.vtt</code> — /surveys/new route also needs exact because /surveys matches it greedily, Header placed above the routes as an always-visible component</li>
+  <li id="n5"><code>07. Developing the Client Side/18. Materialize CSS.vtt</code> — header extracted into its own class component and materialize-css installed as an npm module</li>
+  <li id="n6"><code>07. Developing the Client Side/19. Webpack with CSS.vtt</code> — Webpack from create-react-app acts as a module loader and handles CSS, import materialize-css/dist/css/materialize.min.css at the top of index.js, extension required, no relative path means npm module, restart needed</li>
+  <li id="n7"><code>07. Developing the Client Side/20. Header Design.vtt</code> — navbar markup taken from the Materialize docs, nav with div.nav-wrapper, anchor with left brand-logo classes, ul.right with the login link, className instead of class in React</li>
+  <li id="n8"><code>07. Developing the Client Side/21. Current User API.vtt</code> — Materialize expects a root element with class container added to App's top div, header gaps: logo not clickable, login button does nothing, header content must change with auth</li>
+  <li id="n9"><code>07. Developing the Client Side/22. Additional Proxy Rules.vtt</code> — the server already has the current-user API route, App calls an action creator fetchUser on boot using axios against /api/current_user, Redux Thunk dispatches to the auth reducer, header connects to the store, install axios and redux-thunk plus the extra proxy rules</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

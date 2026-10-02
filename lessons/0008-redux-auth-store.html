@@ -37,19 +37,20 @@
 <h2>2 · Redux store + Provider فـ <code>index.js</code></h2>
 <p>التقسيم عندنا واضح: <code>src/index.js</code> = <strong>Redux setup</strong> (الداتا)، و <code>App.js</code> = <strong>React Router setup</strong> (الـ view layer).<span class="cite"><a href="#n6">[6]</a></span> وثبّتنا <code>react-redux</code> — هي المكتبة اللي كتخلي Redux والـ React يخدمو مع بعضياتهم.<span class="cite"><a href="#n6">[6]</a></span></p>
 <p>الخطة ديال الـ state عندنا: <strong> reducers جوج</strong> — واحد <code>auth</code> (واش الـ user مسجّل؟) و واحد <code>surveys</code> (ليست ديال surveys اللي صاوبهم) — الـ surveys غادي يجي من بعد، ملي نكملو الـ backend ديالهم.<span class="cite"><a href="#n6">[6]</a></span></p>
-<p>مراجعة سريعة ديال الـ flow: component كينادي action creator &rarr; كيرجع action &rarr; الـ action كيتصاوب لكل reducers &rarr; <code>combineReducers</code> كيحدث state فـ store &rarr; الـ state الجديد كيرجع للـ components وكيسبّب re-render.<span class="cite"><a href="#n6">[6]</a></span></p>
+<p>تذكير سريع بالدورة كاملة: الـ component كيعيّط على action creator → كيرجع action → الـ action كيوصل لجميع reducers → الـ <code>combineReducers</code> كيحدّث state فـ store → الـ state الجديد كيرجع للـ components وكيعاود الـ render. علاش هادي مهمة ملي تخدم لـclient: حيت ملي الـ header ما كيتبدّلش من بعد login، هاد الدورة هي أول بلاصة كتقلّب فيها.<span class="cite"><a href="#n6">[6]</a></span></p>
 <div class="cycle">
   <span class="cyc-node">Component</span>
   <span class="cyc-arrow">→</span>
-  <span class="cyc-node">dispatch(action)</span>
+  <span class="cyc-node"><code>dispatch(fetchUser())</code></span>
   <span class="cyc-arrow">→</span>
-  <span class="cyc-node">reducer</span>
+  <span class="cyc-node"><code>authReducer</code></span>
   <span class="cyc-arrow">→</span>
-  <span class="cyc-node">store: state جديد</span>
+  <span class="cyc-node"><code>state.auth</code> جديد فـ store</span>
   <span class="cyc-arrow">→</span>
   <span class="cyc-node">re-render</span>
 </div>
 <div class="cycle-return">رجوع للـ Component بالمحتوى الجديد — ومن بعد كيتكرر نفس الدوران مع أول action جاي</div>
+<p class="mono">كيفاش تقرا هاد المخطط: تبع الأسهم فالدائرة — كل عقدة هي artifact حقيقي، والشريط المنقّط كيرجّعك للبداية.</p>
 <p>و التطبيق فـ <code>index.js</code>: صاوب الـ store، ومن بعد حط <strong><code>&lt;Provider&gt;</code></strong> — component جا من <code>react-redux</code>، وهو الـ "glue" اللي بين الجيهتين: كيلبّس <code>App</code> وكيدوز ليه الـ store.<span class="cite"><a href="#n6">[6]</a></span></p>
 <pre dir="ltr"><code>&lt;Provider store={store}&gt;
   &lt;App /&gt;
@@ -85,15 +86,17 @@ export default combineReducers({ auth: authReducer });</code></pre>
 <h2>4 · علاش auth state مهم</h2>
 <p>واش مستاهل نهدرو على reducer صغير بحال هادا؟ الجواب: حيت <strong>أول حاجة كتبان للuser هي الـ header</strong>، ومحتواه كيتبدّل حسب الـ auth: ملي ما مسجّلش — زر sign in with Google؛ ملي مسجّل — كيتحيد ويبان بدلو logout و أزرار الـ credits.<span class="cite"><a href="#n9">[9]</a></span></p>
 <p>و زيادة على الـ header: <strong>الـ routes</strong> كيتصرفو بشكل مختلف. الـ header كيبان دائما فكل بلاصة؛ الـ landing page (التسويقية) خاصها تشاف بلا تسجيل — عادي؛ أما الـ dashboard (ليست ديال surveys) و <code>/surveys/new</code> (الـ form) ف <strong>خاصهم login</strong> وماشي غير نقاش.<span class="cite"><a href="#n9">[9]</a></span></p>
-<div class="flow">
-  <div class="flow-row">
-    <div class="flow-node">auth state<small>null / user / false</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">header content<small>sign in ولا logout</small></div>
-    <div class="flow-arrow">+</div>
-    <div class="flow-node">routes<small>public ولا protected</small></div>
+<div class="compare">
+  <div>
+    <span class="tag">header: باين دائما</span>
+    ملي <code>state.auth</code> خاوي — زر sign in؛ ملي عامر — logout و أزرار credits.
+  </div>
+  <div>
+    <span class="tag">routes: محمية بـ login</span>
+    الـ landing مفتوحة للكل، أما dashboard و <code>/surveys/new</code> خاصهم login.
   </div>
 </div>
+<p class="mono">كيفاش تقرا هاد المخطط: قارن العمودين — state واحد ديال <code>state.auth</code>، وكل جهة كتستعملو بشكل مختلف.</p>
 <p>هادي هي خطة الدروس الجاية: نصاوبو الـ components، نربطوهم بـ React Router، ومن بعد نجيبو الـ data ديال الـ user للـ client.<span class="cite"><a href="#n9">[9]</a></span></p>
 
 <h2>5 · ممارسة retrieval</h2>

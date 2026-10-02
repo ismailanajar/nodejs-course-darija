@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 17 — تصفيط survey للسيرفر و redirect</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 17 · الكورس section 11</p>
+  <h1>تصفيط survey للسيرفر و redirect</h1>
+  <p class="dek">الفورم كامل واجد — باقي غير النهاية: نصيفطو الـ values لـ <code>/api/surveys</code>، نجدّدو الـ credits ديال user، ونردوه للـ dashboard بلا ما يبقا واقف.</p>
+  <p class="meta">~12 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تقفل الـ loop كامل ديال أي form عندك: <strong>form values &rarr; POST للـ API &rarr; update ديال store &rarr; redirect</strong>. هادي هي القطعة اللي كتقلب واجدة ديال UI لـ feature حقيقية يقدر الـ client ديالك يستعملها.
+</div>
+
+<h2>1 · scaffold ديال الـ action creator</h2>
+<p>قبل ما نكتبو المنطق، الكورس كيعاود ليك الثلاثة ديال الـ tasks اللي باقيين: شنو كيوقع ملي يclicki على <strong>send survey</strong>، كيفاش نرجّعو الـ user للـ dashboard، وكيفاش نرميو الـ values اللي بقاو مخزنين بعد ما يclicki <strong>cancel</strong>.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>أي تبديل فـ بيانات التطبيق = <strong>action creator</strong>، ولهذا كنصاوبو <code>submitSurvey</code> فـ <code>src/actions/index.js</code>: كتاخد <code>values</code> كـ argument، وترجع object فيه <code>type</code> (مثلا <code>SUBMIT_SURVEY</code>) — غير باش الـ Redux ما يطيحش، بلا منطق آلي بعدا.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>الربط: <code>import * as actions</code> ودخّلو كـ الـ argument الثاني ديال <code>connect</code>، ومن بعد كتستقبلو كـ prop فـ <code>SurveyFormReview</code>. الـ زر كيعطيه <code>onClick</code> — وهنا الوثيقة ديال الـ traps: إلا كتبيتي <code>onClick={submitSurvey(formValues)}</code> غادي تنادى <strong>بلا ما تclicki</strong> (كتبان بحال نداء فـ render)، ولهذا كتغلّفها بـ arrow function.<span class="cite"><a href="#n1">[1]</a></span></p>
+<pre dir="ltr"><code>onClick={() =&gt; submitSurvey(formValues, history)}</code></pre>
+
+<h2>2 · تصفير القيم: قطع ذكي</h2>
+<p>الـ bug: ملي الـ user يclicki <strong>cancel</strong> ومن بعد يرجع للفورم، الـ inputs معمرين بحال والو. السبب: حططينا <code>destroyOnUnmount: false</code> على <code>SurveyForm</code>. ولكن حلها ماشي بـ handler على زر الـ cancel — حيت الـ user يقدر يخرج من الفورم بأي link آخر فالـ header.<span class="cite"><a href="#n2">[2]</a></span></p>
+<p>الحيلة: كنربطو <code>reduxForm({ form: 'surveyForm' })</code> بـ <strong><code>SurveyNew</code></strong> هو (نفس الـ اسم ديال form). النتيجة: ملي كتبدل بين <code>SurveyForm</code> و <code>SurveyFormReview</code> ما كاين unmount ديال <code>SurveyNew</code> → القيم كيبقاو؛ وملي الـ user يخرج من <code>SurveyNew</code> كامل (cancel ولا أي route آخر)، هو اللي كيunmount → <strong>الـ default behavior ديال Redux Form كيرمي القيم كاملة</strong>.<span class="cite"><a href="#n2">[2]</a></span></p>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">SurveyNew<small>reduxForm('surveyForm')</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">SurveyForm<small>destroyOnUnmount: false</small></div>
+    <div class="flow-arrow">&harr;</div>
+    <div class="flow-node">SurveyFormReview<small>قيمنا فـ store</small></div>
+  </div>
+</div>
+
+<h2>3 · مطابقة الأسماء: من <code>emails</code> حتى <code>recipients</code></h2>
+<p>قبل الـ POST، فاتورة صغيرة: الـ backend ديالنا (اللي كتبناه من قبل) كيتسنا <code>req.body.recipients</code>، أما الفورم فكايمتّل <code>emails</code> — تناقض بين الطرفين. التصليح ساهل: تبدل <code>name</code> فـ file ديال الـ fields، ومن بعد <code>errors.recipients</code> و <code>values.recipients</code> فـ الـ <code>validate</code> function.<span class="cite"><a href="#n3">[3]</a></span></p>
+
+<h2>4 · POST &rarr; dispatch &rarr; redirect</h2>
+<p>الآن المنطق حقيقي فـ <code>submitSurvey</code>، نفس الطريقة ديال <code>handleToken</code>:</p>
+<pre dir="ltr"><code>export const submitSurvey = (values, history) =&gt; async dispatch =&gt; {
+  const res = await axios.post('/api/surveys', values);
+  dispatch({ type: 'fetch_user', payload: res.data });
+  history.push('/surveys');
+};</code></pre>
+<ul>
+  <li>الـ <code>POST /api/surveys</code> كيرجع <strong>الـ user model المجدّد</strong> (اللي خصّم من الـ credits)، ولهذا كنـ <code>dispatch</code> بو <code>fetch_user</code> — وهكذا الـ header كيupdate بـ الرصيد الجديد بلا refresh.<span class="cite"><a href="#n4">[4]</a></span></li>
+  <li>الـ اختبار فالكورس: POST كيرجع <code>200</code>، الـ credits نقصو من 7 لـ 6، والـ email وصلات لـ inbox ديال الاختبار.<span class="cite"><a href="#n4">[4]</a></span></li>
+  <li><strong>الـ redirect</strong> مشيال: الـ <code>Link</code> غير لـ clicks، وهنا بغيتي <strong>programmatic navigation</strong> من داخل الـ action creator. المسالة: <code>SurveyNew</code> هو اللي كيعرف react-router (Rendered by route)، أما <code>SurveyFormReview</code> ولا الـ action creator لا. الحل: <strong><code>withRouter</code></strong> من <code>react-router-dom</code> — function كتلبس الـ component بحال <code>connect</code> ولكن بتوقيع مختلف: <code>withRouter(SurveyFormReview)</code>.<span class="cite"><a href="#n5">[5]</a></span></li>
+  <li>من بعد، الـ <code>history</code> object كيجي مع الـ props، كديروه كـ argument الثاني للـ action creator، وتستعملو <code>history.push('/surveys')</code> من بعد ما يكمل الـ request بنجاح.<span class="cite"><a href="#n5">[5]</a></span></li>
+</ul>
+<p class="mono" style="font-size:0.8rem;color:var(--ink-faint)">الكورس كينبّه: فالـ versions القديمة ديال react-router هاد الشي كان أسهل؛ فالنسخ الجديدة خاصك <code>withRouter</code> + تمرير <code>history</code> يدويا.<span class="cite"><a href="#n5">[5]</a></span></p>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> علاش غلفتي <code>submitSurvey(formValues)</code> بـ arrow function فـ <code>onClick</code>؟</p>
+  <button class="opt">باش الـ action يمشي للـ middleware ديالو</button>
+  <button class="opt">باش الـ function تنادى غير عند click</button>
+  <button class="opt">باش نvalidi الـ values قبل ما نسيفطوهم</button>
+  <button class="opt" data-correct>بلا wrap غادي تنادى مباشرة مع render</button>
+  <p class="explain"><code>onClick={submitSurvey(formValues)}</code> كيبان بـ call expression — كينادى فور ما يتفسّر الـ render. الـ arrow function كتحوّلو لـ deferred call.<span class="cite"><a href="#n1">[1]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> مراجعة: من الدرس 16، شنو اللي كيخلي الـ review يقرا الـ values ديال الفورم؟</p>
+  <button class="opt">جوج components كول واحد عندو state ديالو</button>
+  <button class="opt" data-correct>connect كيالقط formValues من state ديال store</button>
+  <button class="opt">الـ props اللي كيجيو مع react-router automatic</button>
+  <button class="opt">Redux Form كيصيفطهم بـ WebSocket للـ browser</button>
+  <p class="explain">الـ <code>mapStateToProps</code> كيرجع <code>state.form.surveyForm.values</code> كـ prop — نفس الطريق ديال أي React Redux component.<span class="cite"><a href="#n2">[2]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> علاش كنـ <code>dispatch({ type: 'fetch_user' })</code> من بعد الـ POST؟</p>
+  <button class="opt" data-correct>باش الـ header يجدّد الـ credits ديالو</button>
+  <button class="opt">باش نمشيو للـ dashboard مباشرة بلا redirect</button>
+  <button class="opt">باش نحيدو values من الـ form نهائيا</button>
+  <button class="opt">باش نزيدو credit جديد لحساب ديال user</button>
+  <p class="explain">الـ route handler كيرجع الـ user model بعد ما خصّم credit؛ الـ dispatch كيجدّد الـ auth state فالـ store، والـ redirect خدمة أخرى (<code>history.push</code>).<span class="cite"><a href="#n4">[4]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> علاش بدّلنا اسم <code>emails</code> بـ <code>recipients</code> فالـ client؟</p>
+  <button class="opt">حيت الـ emails خاصها تكون بالـ lowercase</button>
+  <button class="opt">حيت الـ MongoDB كيرفض الـ emails field</button>
+  <button class="opt" data-correct>حيت الـ backend ديالنا كيتسنا غير req.body.recipients</button>
+  <button class="opt">حيت الـ react-router بغا اسم field جديد</button>
+  <p class="explain">الـ API اللي كتبناه من قبل كيقرأ <code>req.body.recipients</code> — إلا ما سماوحتش الـ client بنفس الـ اسم، الـ field غادي يكون <code>undefined</code> فالسيرفر.<span class="cite"><a href="#n3">[3]</a></span></p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0006-redux-form-wizard.html">المرجع 0006</a><span>·</span>
+    <a href="../lessons/0016-form-validation-wizard.html">الدرس السابق 16</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>0018 — Webhooks و dev setup</strong> (الاستقبال ديال feedback).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>11. Back to the Client!/26. Outstanding Form Work.vtt</code> (03:30–07:50, 08:39–10:50) — submitSurvey scaffold, connect actions, arrow function wrap, three tasks</li>
+  <li id="n2"><code>11. Back to the Client!/27. Dumping Form Values.vtt</code> (01:19–01:49, 02:47–06:37) — reduxForm on SurveyNew, default destroy behavior on navigation</li>
+  <li id="n3"><code>11. Back to the Client!/28. Fixing Property Names.vtt</code> (00:47–02:40) — rename emails to recipients, backend expects req.body.recipients</li>
+  <li id="n4"><code>11. Back to the Client!/29. Posting to Surveys.vtt</code> (01:07–02:41, 03:46–04:18) — axios post to /api/surveys, dispatch fetch_user, 200 + credits update</li>
+  <li id="n5"><code>11. Back to the Client!/30. Redirect on Submit.vtt</code> (02:50–07:07, 07:09–07:38) — withRouter helper, history prop, history.push('/surveys')</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

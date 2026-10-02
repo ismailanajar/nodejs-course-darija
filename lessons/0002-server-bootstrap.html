@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 2 — ننشأو السيرفر: npm init و أول route handler</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 2 · Course sections 02</p>
+  <h1>نشأو السيرفر: npm init و أول route handler</h1>
+  <p class="dek">من directory خاوية حتى لـ <code>localhost:5000</code> اللي كيرجع ليك شي حاجة — هادي هي الوحدة اللي كتبدا بيها أي backend project.</p>
+  <p class="meta">~10 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تصاوب server جديد من الصفر (<code>npm init</code> &rarr; install Express &rarr; أول <code>app.get</code>) وتوصل بيه من browser، وغادي تقدر تشرح لـclient شكون كيسمع للـ traffic وشكون كيقرر كيفاش يجاوب — Node ولا Express.
+</div>
+
+<h2>0 · رجع سريع</h2>
+<p>الدرس اللي فات قلنا القانون ديال المشروع: React كيسول غير لـ Express API، والExpress هو اللي كيقرا من MongoDB.<span class="cite"><a href="#n1">[1]</a></span> دابا غادي نبنيو نفس هاد الـ Express API بوحدو.</p>
+
+<h2>1 · من الصفر إلى package.json</h2>
+<p>الأوامر كاملة كتمشي فـ terminal:</p>
+<pre><code>mkdir Server &amp;&amp; cd Server
+npm init
+npm install --save express</code></pre>
+<ul>
+  <li><code>npm init</code> كيسولك شي أسئلة — الكورس كيجاوب بالـ default values (enter, enter, enter).<span class="cite"><a href="#n2">[2]</a></span></li>
+  <li>النتيجة هي <code>package.json</code>، اللي الكورس كيناديه <strong>central hub</strong> ديال المشروع و فينو كيتسجلو الـ dependencies.<span class="cite"><a href="#n2">[2]</a></span></li>
+  <li>من بعد <code>npm install --save express</code>، كتلقى <code>express</code> مسجل فـ <code>dependencies</code>، و<code>node_modules</code> فيه Express نفسو مع dependencies ديالو.<span class="cite"><a href="#n2">[2]</a></span><span class="cite"><a href="#n5">[5]</a></span></li>
+</ul>
+
+<h2>2 · Node ولا Express؟</h2>
+<p>الكورس عطى تعريفات واضحة:<span class="cite"><a href="#n3">[3]</a></span></p>
+<ul>
+  <li><strong>Node</strong> = JavaScript runtime كيexecute الكود <em>خارج</em> الـ browser، وهو اللي كيسمع الـ HTTP traffic على <strong>port</strong> واحد (الـ port كيشبه لباب دخل منو الـ requests).</li>
+  <li><strong>Express</strong> = ماشي runtime بوحدو — هادي <strong>library ديال helpers</strong> فوق Node باش كتابة السيرفرات تبقى ساهلة. كلشي اللي كيدير Express، تقدر تصاوبو بـ Node عادي.</li>
+</ul>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">HTTP request<small>من browser</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">Node<small>كيسمع على port</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">Express<small>كيبان شي route handler</small></div>
+  </div>
+  <div class="flow-row">
+    <div class="flow-node">route handler<small>منطق + res</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">Node<small>كيرجع response</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">Browser<small>النتيجة</small></div>
+  </div>
+</div>
+<p>يعني: Node هو اللي كيتحمّل الـ traffic الحقيقي، Express هو اللي كيقول "هاد الـ request هادي خاصها هاد الـ handler".<span class="cite"><a href="#n3">[3]</a></span></p>
+
+<h2>3 · أول route handler</h2>
+<p>فـ <code>server</code> directory، كنصاوبو <code>index.js</code> — الـ convention ديال startup file فـ Node projects.<span class="cite"><a href="#n4">[4]</a></span></p>
+<pre><code>const express = require('express');
+const app = express();
+
+app.get('/api/current_user', (req, res) =&gt; {
+  res.send({ hi: 'there' });
+});
+
+app.listen(5000);</code></pre>
+<ul>
+  <li><code>require</code> = <strong>CommonJS modules</strong>، النظام اللي Node كيستعملو لمشاركة الكود بين files (ماشي <code>import</code> ديال ES2015 — الـ React side هو اللي كيستعملو).<span class="cite"><a href="#n4">[4]</a></span></li>
+  <li><code>const app = express()</code> = كتصاوب <strong>تطبيق Express واحد</strong> خدام.<span class="cite"><a href="#n4">[4]</a></span></li>
+  <li><code>app.get(...)</code> = <strong>route handler</strong> جديد كيسنى incoming requests بـ HTTP <code>GET</code>. الـ <code>app</code> نفسو هو الـ server الخدام.<span class="cite"><a href="#n6">[6]</a></span></li>
+  <li>بجانب <code>get</code> عندينا <code>post</code>، <code>put</code>، <code>patch</code>، <code>delete</code> — الـ methods غير معنى نوع الـ request.<span class="cite"><a href="#n6">[6]</a></span></li>
+  <li><code>app.listen(5000)</code> وبعدها كتحل <code>localhost:5000</code> فـ browser.<span class="cite"><a href="#n4">[4]</a></span></li>
+</ul>
+
+<h2>4 · تفاصيل صغيرة كتفرق</h2>
+<ul>
+  <li>الكورس كيستعمل <code>atom .</code> باش يحل الـ editor من داخل الـ directory — إلا ما عندكش Atom، حل editor ديالك يدوي.<span class="cite"><a href="#n5">[5]</a></span></li>
+  <li><code>package-lock.json</code> ماكيبانش إلا كنتي على <strong>npm 5 على الأقل</strong> — والكورس باغي هاد النسخة حيت غير محتاج ميزات منها.<span class="cite"><a href="#n5">[5]</a></span></li>
+  <li>الكورس كيدير <strong>deploy</strong> بكري بزاف: حتى مع هاد الكود البسيط، غادي نتعلمو الـ deployment مع <strong>Heroku</strong> (service خارجي اللي كتبدا بيه بلا credit card) باشصحابك و عائلتك يجربو التطبيق.<span class="cite"><a href="#n7">[7]</a></span></li>
+</ul>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تحل شي حاجة. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> شنو كيصاوب <code>npm init</code> فالمشروع؟</p>
+  <button class="opt">واحد ملف HTML ديال السيرفر</button>
+  <button class="opt" data-correct>ملف package.json ديال المشروع كامل</button>
+  <button class="opt">directory جديد اسمو node_modules هنا</button>
+  <button class="opt">سيرفر Express خدام ف port</button>
+  <p class="explain">الـ <code>npm init</code> كيصاوب <code>package.json</code>، اللي هو الـ central hub ديال المشروع و فيه الـ dependencies.<span class="cite"><a href="#n2">[2]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> شنو كيبان فـ <code>package.json</code> من بعد ما نصبنا Express؟</p>
+  <button class="opt">express مسجل تحت devDependencies فقط هنا</button>
+  <button class="opt">express مسجل تحت scripts ديال npm</button>
+  <button class="opt">express كيتزاد فـ browserslist للمشروع كاع</button>
+  <button class="opt" data-correct>express مسجل تحت dependencies ديال المشروع</button>
+  <p class="explain">من بعد <code>npm install --save express</code>، Express كيبان مسجل تحت <code>dependencies</code>، وكاع ملفاتو داخل <code>node_modules</code>.<span class="cite"><a href="#n2">[2]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> شنو كيدير السطر <code>app.get('/api/x', ...)</code>؟</p>
+  <button class="opt" data-correct>كيخلق route handler كيسنى GET requests</button>
+  <button class="opt">كيخدم MongoDB query ديال الداتا كاملة</button>
+  <button class="opt">كينصب package جديد من داخل server</button>
+  <button class="opt">كيرجع HTTP response HTML كامل للمستخدم</button>
+  <p class="explain">الـ <code>app</code> هو الـ server الخدام، و<code>.get</code> كتخلق route handler جديد كيراقب incoming HTTP GET requests.<span class="cite"><a href="#n6">[6]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> مراجعة: فهاد الكورس، شنو القانون ديال relationship بين React و MongoDB؟</p>
+  <button class="opt">React كيتكلم مع MongoDB مباشرة بلا Express</button>
+  <button class="opt">MongoDB هو اللي كيرسم UI ديال React</button>
+  <button class="opt" data-correct>React كيسول غير لـ Express API وحده</button>
+  <button class="opt">React و MongoDB كيتواصلو عبر WebSockets دايما</button>
+  <p class="explain">Law #1 ديال الدرس 1.1: React عمرو ما كيتكلم مع MongoDB مباشرة — الطريق كاملة كتمشي من خلال Express API.<span class="cite"><a href="#n1">[1]</a></span></p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0001-emaily-architecture.html">المرجع 0001</a><span>·</span>
+    <a href="0001-fullstack-architecture.html">الدرس السابق</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>Google OAuth و Passport JS: كيفاش كيمشي الـ flow</strong> (القسم 03).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>02. Server Side Architecture/01. Application Architecture.vtt</code> (01:29–02:43) — HTML/JS served by us, React never talks to MongoDB directly</li>
+  <li id="n2"><code>02. Server Side Architecture/02. Relationship Between Node and Express.vtt</code> (00:41–01:51) — mkdir Server, npm init defaults, package.json as central hub, npm install --save express</li>
+  <li id="n3"><code>02. Server Side Architecture/02. Relationship Between Node and Express.vtt</code> (02:45–07:24) — Node = runtime outside the browser, Express = helper library, port, Node hands traffic to Express, route handlers</li>
+  <li id="n4"><code>02. Server Side Architecture/03. Generating Express Apps.vtt</code> (01:50–06:43) — index.js by convention, require vs import (CommonJS), const app = express(), app.listen(5000)</li>
+  <li id="n5"><code>02. Server Side Architecture/03. Generating Express Apps.vtt</code> (00:26–01:41) — atom . editor note, dependencies list, package-lock.json needs npm version five</li>
+  <li id="n6"><code>02. Server Side Architecture/04. Express Route Handlers.vtt</code> (01:08–02:26) — app object = running server, app.get creates a route handler, GET/POST/PUT/PATCH/DELETE</li>
+  <li id="n7"><code>02. Server Side Architecture/06. Deployment Checklist.vtt</code> (00:29–01:29) — deploy even with basic code, third-party service Heroku, start for free without credit cards</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

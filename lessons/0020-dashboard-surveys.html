@@ -31,21 +31,18 @@
 <p>المشكلة اللي كيبان من تاني: كل survey كيجيب معاها الـ <code>recipients</code> ديالها — وممكن يكونو آلاف. الـ mockup ديالنا أصلا ما كيعرضش أسماء الأفراد، وماشي معقول نصيفط عشرات الميغا باش نعرض عدد ديال cards.<span class="cite"><a href="#n2">[2]</a></span></p>
 
 <h2>2 · whitelist: <code>.select({ recipients: false })</code></h2>
-<p>الحل جا من الـ docs ديال Mongoose: الـ query اللي كيرجع من <code>Survey.find()</code> هو object، وعليه تقدر تسلسل <code>.select()</code> — والاسم ديالها فالـ docs هو <strong>projection</strong> (يعني: شنو تدخل و شنو تحيد من النتيجة).<span class="cite"><a href="#n3">[3]</a></span> كاين جوج syntax (سلسلة بـ<code>-fieldname</code> ولا object بـ<code>1</code>/<code>0</code>)، وحنا استعملنا object:</p>
+<p>الحل كاين فالـ docs ديال Mongoose: <code>Survey.find()</code> كترجع query object تقدر تسلسل عليها <code>.select()</code> — وسميتها فالـ docs هي <strong>projection</strong>، يعني كتختار شنو يدخل وشنو يتحيد من النتيجة. علاش هادي مهمة ملي تخدم لـclient: الـ client ما غاديش يخلص على صفحة كتعطل حيت صيفطتي ليه ميغات زايدة ما محتاجهاش.<span class="cite"><a href="#n3">[3]</a></span> كاين جوج syntax (سلسلة بـ<code>-fieldname</code> ولا object بـ<code>1</code>/<code>0</code>)، وحنا استعملنا object:</p>
 <pre><code>const surveys = await Survey
   .find({ _user: req.user.id })
   .select({ recipients: false });</code></pre>
 <p>يعني: <strong>ما تعطينيش الـ recipients</strong> ملي تجيب ليا الـ surveys.<span class="cite"><a href="#n3">[3]</a></span></p>
 <p><strong>الاختبار:</strong> من الكونسول ديال المتصفح (وانت مسجل دخول) <code>axios.get('/api/surveys')</code> — خاصك ترجع <strong>200</strong>، وفالـ Preview غادي تشوف كل survey بـ<code>body</code>، <code>dateSent</code>، <code>lastResponded</code>، <code>no</code>، <code>yes</code>، <code>subject</code> و <code>title</code> — بلا حتى email.<span class="cite"><a href="#n4">[4]</a></span></p>
-<div class="flow">
-  <div class="flow-row">
-    <div class="flow-node">GET /api/surveys<small>Express + requireLogin</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">fetchSurveys<small>action creator</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">SurveyList<small>connect + map</small></div>
-  </div>
-</div>
+<ol class="seq">
+  <li><span class="from">axios</span> <span class="arrow">→</span> <span class="to">Express</span> <span class="what">GET /api/surveys مع requireLogin</span></li>
+  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">MongoDB</span> <span class="what">Survey.find({ _user: req.user.id }).select({ recipients: false })</span></li>
+  <li><span class="from">MongoDB</span> <span class="arrow">→</span> <span class="to">Browser</span> <span class="what">res.send(surveys) بلا recipients</span></li>
+</ol>
+<p class="mono">كيفاش تقرا هاد المخطط: تبع الأرقام من 1 حتى 3 — الطلب كيمشي من الـ browser للـ DB وكيخرج خفيف بلا recipients.</p>
 
 <h2>3 · نوصّلو الـ data بـRedux</h2>
 <p>نفس الدورة اللي كنعاودوها من البداية ديال الكورس:<span class="cite"><a href="#n5">[5]</a></span></p>
@@ -68,13 +65,14 @@
 </ul>
 <div class="cycle">
   <span class="cyc-node">componentDidMount</span><span class="cyc-arrow">→</span>
-  <span class="cyc-node">fetchSurveys</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">fetchSurveys()</span><span class="cyc-arrow">→</span>
   <span class="cyc-node">GET /api/surveys</span><span class="cyc-arrow">→</span>
   <span class="cyc-node">dispatch FETCH_SURVEYS</span><span class="cyc-arrow">→</span>
-  <span class="cyc-node">reducer</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">surveysReducer</span><span class="cyc-arrow">→</span>
   <span class="cyc-node">state.surveys</span>
 </div>
 <div class="cycle-return">الـ SurveyList كتعاود تrender بالـ cards الجديدة</div>
+<p class="mono">كيفاش تقرا هاد المخطط: تبع الأسهم فالدائرة — SurveyList كتنادي fetchSurveys و state.surveys الجديدة كتعاود ترسم الـ cards.</p>
 <p><strong>العرض:</strong> HTML ديال <strong>Materialize cards</strong> — ماشي الـ divs ديال <code>row</code> و <code>col</code> اللي كيقدرو يضيّقو العرض، غير من <code>card ...</code> لتحت. لكل survey وحدة:<span class="cite"><a href="#n7">[7]</a></span></p>
 <pre><code>this.props.surveys.map(survey =&gt; (
   &lt;div key={survey._id} className="card darken-1"&gt;
@@ -94,7 +92,7 @@
   <li><strong>الـ yes/no:</strong> استعملنا <code>&lt;a&gt;</code> باش ناخذو الـ styling ديال Materialize مع أن هادي ماشي navigation حقيقية (hack صغيّر مقبول هاد المرة).<span class="cite"><a href="#n7">[7]</a></span></li>
 </ul>
 <p><strong>الترتيب:</strong> الـ surveys كيجيو بالأقدم فوق — باش الجدد يبانو فوق، زدنا <code>.reverse()</code> قبل ما نـ<code>map</code>و (بلا ما نبدّلو الـ array الأصلية بـsort). وباش النموذج يبدو حيو، بدّلو الـ vote counts يدويا من الـ MongoDB UI.<span class="cite"><a href="#n8">[8]</a></span></p>
-<p><strong>النشر:</strong> <code>git status</code> &rarr; <code>git add .</code> &rarr; <code>git commit -m "users can see survey results"</code> &rarr; <code>git push heroku master</code>. وتذكير مهم: الـ webhook ديال SendGrid باقي كيشير للـ tunnel ديال laptop ديالك — والـ SendGrid ما كيقبلش جوج webhooks فـحساب واحد، ف إلا بغيتي كلشي خدام فـproduction خاصك تبدّل الـ URL ولا تدير حساب ثاني.<span class="cite"><a href="#n9">[9]</a></span></p>
+<p><strong>النشر:</strong> <code>git status</code> → <code>git add .</code> → <code>git commit -m "users can see survey results"</code> → <code>git push heroku master</code>. وتذكير مهم: الـ webhook ديال SendGrid باقي كيشير للـ tunnel ديال laptop ديالك — والـ SendGrid ما كيقبلش جوج webhooks فـحساب واحد، ف إلا بغيتي كلشي خدام فـproduction خاصك تبدّل الـ URL ولا تدير حساب ثاني.<span class="cite"><a href="#n9">[9]</a></span></p>
 
 <h2>5 · ممارسة retrieval</h2>
 <p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki.</p>
@@ -131,7 +129,7 @@
 
 <div class="callout">
   <span class="label">هادا آخر درس</span>
-  هادي هي آخر محطة فـمسار الـ lessons: دابا عندك تطبيق كامل (OAuth &rarr; credits &rarr; surveys &rarr; emails &rarr; webhooks &rarr; dashboard). شوف <a href="../MISSION.md">MISSION.md</a> و <a href="../RESOURCES.md">RESOURCES.md</a> باش تعرف شنو الخطوة الجاية.
+  هادي هي آخر محطة فـمسار الـ lessons: دابا عندك تطبيق كامل (OAuth → credits → surveys → emails → webhooks → dashboard). شوف <a href="../MISSION.md">MISSION.md</a> و <a href="../RESOURCES.md">RESOURCES.md</a> باش تعرف شنو الخطوة الجاية.
 </div>
 
 <footer class="lesson-footer">

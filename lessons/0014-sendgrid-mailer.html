@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 14 — الـ mailer: SendGrid و templates ديال survey</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 14 · الكورس section 10</p>
+  <h1>الـ mailer: SendGrid و templates ديال survey</h1>
+  <p class="dek">الـ survey واجد فـ DB، باقي غير يوصل لـ inbox ديال الناس: غادي نصاوبو <strong>Mailer class</strong> فوق <strong>SendGrid</strong>، ونربطوها بـ template ديال الـ email، ونكملو الـ route handler حتى لآخر خطوة.</p>
+  <p class="meta">~14 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تقدر تصاوب أي <strong>mailing</strong> feature: class وحدة قابلة لإعادة الاستعمال (<code>new Mailer({subject, recipients}, content)</code>)، <strong>template</strong> كتصاوب الـ HTML، وroute handler كيصيفط، كيحفظ، وكينقص الـ <strong>credit</strong> — مع <strong>error handling</strong> و الـ <strong>click tracking</strong> اللي كيخلي SendGrid يعرف شكون كي click.
+</div>
+
+<h2>1 · وين كيتسنط الـ mailer: route handler + template</h2>
+<p>الـ mailer كيتستعمل من <code>routes/surveyRoutes.js</code>، مباشرة بعد ما نصاوبو الـ survey instance: <code>const Mailer = require('../services/mailer')</code> + <code>surveyTemplate</code> من <code>services/emailTemplates/surveyTemplate</code>.<span class="cite"><a href="#n6">[6]</a></span></p>
+<p>الـ <strong>template</strong> هي function كتاخد الـ survey وترجع <strong>HTML string</strong> ديال body ديال الـ email (فالبداية كانت غير <code>&lt;div&gt;</code>، ومن بعد رجعناها صفحة كاملة بـ backtick string: عنوان "I'd like your input"، <code>${survey.body}</code>، وجوج links ديال yes/no).<span class="cite"><a href="#n6">[6]</a></span><span class="cite"><a href="#n12">[12]</a></span></p>
+<pre dir="ltr"><code>const mailer = new Mailer(
+  { subject: survey.subject, recipients: survey.recipients },
+  surveyTemplate(survey)
+);</code></pre>
+<p>والمهم: <strong>الـ survey ما كيتحفظش وحدو</strong> — خاصك تنادي بـ <code>survey.save()</code> يدوياً.<span class="cite"><a href="#n1">[1]</a></span> والـ mailer ماشي strictly coupled للـ survey: غير object فيه <code>subject</code> و <code>recipients</code>، وهكذا تقدر تستعملو لأي email أخرى فالمستقبل.<span class="cite"><a href="#n7">[7]</a></span></p>
+
+<h2>2 · تشريح الـ Mailer class</h2>
+<p>الملف: <code>services/Mailer.js</code> — <code>class Mailer extends helper.Mail</code> (الـ <code>helper</code> جاي من الـ SendGrid NodeJS module اللي كنصايبو بـ <code>npm install @sendgrid/mail</code> فالأخير).<span class="cite"><a href="#n3">[3]</a></span><span class="cite"><a href="#n4">[4]</a></span></p>
+<table dir="ltr">
+  <tr><th>Property / method</th><th>شنو كيدير</th></tr>
+  <tr><td><code>constructor({ subject, recipients }, content)</code></td><td>destructuring للأول، <code>content</code> هو HTML string (بلا curly braces).</td></tr>
+  <tr><td><code>super()</code></td><td>كينادي الـ constructor ديال <code>helper.Mail</code> base class.</td></tr>
+  <tr><td><code>this.from_email = new helper.Email(...)</code></td><td>الـ sender — <strong>خاصو يكون verified sender</strong> عند SendGrid (القديم <code>no-reply@emaily.com</code> بقا واخد غير إلا كان موثّق).<span class="cite"><a href="#n5">[5]</a></span></td></tr>
+  <tr><td><code>this.body = new helper.Content('text/html', content)</code></td><td>كيعرّف الـ body كـ HTML.<span class="cite"><a href="#n7">[7]</a></span></td></tr>
+  <tr><td><code>this.formatAddresses(recipients)</code></td><td><code>recipients.map(({ email }) =&gt; new helper.Email(email))</code> — كتحل الـ subdocs وتخرج غير emails.<span class="cite"><a href="#n8">[8]</a></span></td></tr>
+  <tr><td><code>this.addContent(this.body)</code></td><td>طريقة بنيت فـ base class <code>helper.Mail</code> — غير كتناديه.<span class="cite"><a href="#n8">[8]</a></span></td></tr>
+  <tr><td><code>this.addClickTracking()</code></td><td>طريقة ديالك: <code>new helper.trackingSettings()</code> + <code>new helper.clickTracking(true, true)</code> &rarr; <code>setClickTracking</code> &rarr; <code>addTrackingSettings</code>.<span class="cite"><a href="#n8">[8]</a></span></td></tr>
+  <tr><td><code>this.addRecipients(this.recipients)</code></td><td>طريقة ديالك: كتزيد كل عنصر لقائمة الـ recipients.<span class="cite"><a href="#n9">[9]</a></span></td></tr>
+  <tr><td><code>this.sgApi = SendGrid(keys.sendGridKey)</code></td><td>الـ API object اللي كيتكلم مع SendGrid.<span class="cite"><a href="#n10">[10]</a></span></td></tr>
+</table>
+<p>باش كتدير <strong>click tracking</strong>؟ حيت الـ email اللي كنصيفطو كتبقى وحدة للجميع، ولكن SendGrid كتبديل كل link بـ link خاص بيها — وهكذا كتعرف شكون clicka. هادي هي النقطة اللي كلشي كيعتمد عليها.<span class="cite"><a href="#n14">[14]</a></span></p>
+
+<h2>3 · الـ send(): كيتصيفط لـ SendGrid</h2>
+<pre dir="ltr"><code>async send() {
+  const request = this.sgApi.API.emptyRequest({
+    method: 'POST',
+    path: '/v3/mail/send',
+    body: this.toJSON()          // كل الـ properties → JSON
+  });
+  const response = await this.sgApi.API(request);
+  return response;
+}</code></pre>
+<p>الـ <code>toJSON()</code> طريقة ديال base class كيحوّل كلشي لـ JSON، و <code>emptyRequest</code> + <code>API(request)</code> هي الطريقة ديال SendGrid باش تصيفط الـ request.<span class="cite"><a href="#n10">[10]</a></span> الـ <code>send()</code> <strong>async</strong> — يعني خاصك <code>await</code> عليها.<span class="cite"><a href="#n10">[10]</a></span></p>
+<p>فـ SendGrid dashboard، من <strong>Activity</strong> تقدر تشوف الـ events: processed, delivered, opened، وفوق كلشي <strong>click</strong> — يعني SendGrid عارف بالضبط شكون clicka على أي email.<span class="cite"><a href="#n14">[14]</a></span></p>
+
+<h2>4 · الـ polish ديال الـ route handler</h2>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">new Survey<small>بلا save</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">await mailer.send()<small>SendGrid</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">await survey.save()<small>DB</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">credits -= 1<small>await save</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">res.send(user)<small>header يتحدّث</small></div>
+  </div>
+</div>
+<p>الترتيب كيهم: خاص الـ email توصل قبل ما نسجلو الـ survey، وخصوم الـ <strong>credit واحد</strong> (<code>req.user.credits -= 1</code>) من بعد ما نعلمو بلي الـ send نجح، وفالأخير نرجّعو الـ user المحدّث بحال ما درنا مع Stripe.<span class="cite"><a href="#n13">[13]</a></span> وكلشي لفّف فـ <strong>try/catch</strong> — إلا وقع شي خطأ، <code>res.status(422)</code> (unprocessable entity) مع الـ error message.<span class="cite"><a href="#n13">[13]</a></span></p>
+<p>وأول ما نختبرو، كنلقاو مشكل: الـ links ديال yes/no كيرجعو لـ <code>localhost:3000</code> — ماشي مشكل فـ development، ولكن <strong>فـ email ما يمكنش تستعمل relative links</strong> (غادي يوصلو لـ domain ديال Gmail!). الحل: <code>redirectDomain</code> key فـ <code>config/dev.js</code> (<code>http://localhost:3000</code>) و <code>config/prod.js</code> (<code>process.env.REDIRECT_DOMAIN</code>)، والـ template كيستعملو بـ string interpolation، وكنصاوبو route <code>GET /api/surveys/thanks</code> كيرجع "Thanks for voting".<span class="cite"><a href="#n15">[15]</a></span></p>
+<p class="mono" style="font-size:0.8rem;color:var(--ink-faint)">المرجع: <a href="../reference/0005-survey-model-mailer.html">Reference 0005 — Survey Model &amp; Mailer Cheatsheet</a></p>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> شنو كيدير <code>addClickTracking</code> داخل الـ Mailer؟</p>
+  <button class="opt" data-correct>كيخلّي SendGrid يبدل كل link بـ tracking</button>
+  <button class="opt">كيحلق كامل الـ emails للمستخدمين واحد بواحد</button>
+  <button class="opt">كيحسب عدد الـ clicks على الـ website</button>
+  <button class="opt">كيصاوب كامل الـ template ديال الـ email</button>
+  <p class="explain">الـ click tracking كيخلّي SendGrid تستبدل كل link بـ link خاص بيها، وهكذا تعرف شكون clicka — الـ email اللي كنصيفطو كتبقى وحدة للجميع.<span class="cite"><a href="#n8">[8]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> شنو الدور ديال <code>surveyTemplate(survey)</code>؟</p>
+  <button class="opt">كيولّد HTML ديال body ديال الـ email</button>
+  <button class="opt" data-correct>كيصيفط كامل الـ email عبر SendGrid API</button>
+  <button class="opt">كيخصّص كامل الـ credits ديال الـ user</button>
+  <button class="opt">كيصاوب كامل الـ survey جديد فـ MongoDB</button>
+  <p class="explain">الـ template function كتاخد الـ survey وترجع HTML string (عنوان + <code>survey.body</code> + جوج links)، أما الـ send فخدام فيها الـ <code>mailer.send()</code>.<span class="cite"><a href="#n6">[6]</a></span><span class="cite"><a href="#n12">[12]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> مراجعة: من درس الـ survey model، شنو نوع relationship field <code>_user</code>؟</p>
+  <button class="opt">String عادي بـ default ديال empty</button>
+  <button class="opt">Array ديال emails بـ default null</button>
+  <button class="opt">Boolean كامل بـ default ديال false</button>
+  <button class="opt" data-correct>Schema.Types.ObjectId بـ ref كامل ديال user</button>
+  <p class="explain"><code>_user: { type: Schema.Types.ObjectId, ref: 'user' }</code> — رابط لـ users collection، أما الـ Boolean الـ default false فداير على <code>responded</code> ديال كل recipient.<span class="cite"><a href="#n16">[16]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> بعد ما <code>mailer.send()</code> ينجح، شنو الخطوة اللي من بعد فـ route handler؟</p>
+  <button class="opt">نزيدو credit جديد على حساب الـ user</button>
+  <button class="opt">نرجعو user ديالنا بلا ما نخصمو credit</button>
+  <button class="opt" data-correct>await survey.save() ومن بعد نخصمو credit واحد</button>
+  <button class="opt">req.user كامل كنمسحوه من داخل الـ request</button>
+  <p class="explain">الترتيب: صيفط &rarr; <code>await survey.save()</code> &rarr; <code>req.user.credits -= 1</code> و <code>await save()</code> &rarr; <code>res.send(user)</code> — الـ credit كيخصم غير من بعد ما الـ send ينجح.<span class="cite"><a href="#n13">[13]</a></span></p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0005-survey-model-mailer.html">المرجع 0005</a><span>·</span>
+    <a href="../lessons/0013-survey-model.html">الدرس السابق 13</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>15 — Redux Form: صياغة survey form بـ custom fields</strong> (رجعو للـ client وصاوبو الـ form).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>10. Mongoose for Survey Creation/13. Creating Mailers.vtt</code> (00:05–01:11) — the new survey is not auto-saved, save() must be called</li>
+  <li id="n2"><code>10. Mongoose for Survey Creation/14. Identifying Unique Users.vtt</code> (00:04–01:04) — merge survey + email template into one Mailer object</li>
+  <li id="n3"><code>10. Mongoose for Survey Creation/16. Sendgrid Setup.vtt</code> (00:27–01:11) + <code>15. Sendgrid Activation Update.html</code> — sign up, API keys, install NodeJS SendGrid package, Single Sender Verification</li>
+  <li id="n4"><code>10. Mongoose for Survey Creation/17. Mailer Setup.vtt</code> (00:04–01:07) — services/Mailer.js, class Mailer extends helper.Mail</li>
+  <li id="n5"><code>10. Mongoose for Survey Creation/18. Update for from_email setting.html</code> — from_email must be a verified Sender, otherwise the API call fails</li>
+  <li id="n6"><code>10. Mongoose for Survey Creation/19. Mailer in Use.vtt</code> (00:00–11:00) — used in surveyRoutes, new Mailer(survey-ish, surveyTemplate(survey)), services/emailTemplates/surveyTemplate.js</li>
+  <li id="n7"><code>10. Mongoose for Survey Creation/20. Mailer Constructor.vtt</code> (00:00–08:31) — constructor({subject, recipients}, content), super(), from_email, helper.Content</li>
+  <li id="n8"><code>10. Mongoose for Survey Creation/21. Boilerplate for Sending Emails.vtt</code> (00:00–09:28) — four properties, formatAddresses destructuring, addContent built-in, addClickTracking trackingSettings</li>
+  <li id="n9"><code>10. Mongoose for Survey Creation/22. More Mailer Properties.vtt</code> (00:11–01:03) — addRecipients defined by us, addContent from the Mail base class</li>
+  <li id="n10"><code>10. Mongoose for Survey Creation/23. Sending SendGrid Emails.vtt</code> (00:00–06:16) — sgApi = SendGrid(keys.sendGridKey), emptyRequest POST /v3/mail/send, toJSON()</li>
+  <li id="n11"><code>10. Mongoose for Survey Creation/24. Testing Email Sending.vtt</code> (00:16–01:05) — calling mailer.send(), testing via POST with login + credits</li>
+  <li id="n12"><code>10. Mongoose for Survey Creation/25. Improving the Email Template.vtt</code> (00:00–08:57) — backtick HTML template, survey.body, yes/no links, SendGrid rewrites URLs</li>
+  <li id="n13"><code>10. Mongoose for Survey Creation/26. Polish in the Route Handler.vtt</code> (00:00–09:47) — await mailer.send(), await survey.save(), credits -= 1, res.send(user), try/catch 422</li>
+  <li id="n14"><code>10. Mongoose for Survey Creation/27. Verifying Sendgrid Click Tracking.vtt</code> (00:21–02:04) — SendGrid Activity feed, click events, the linchpin of the app</li>
+  <li id="n15"><code>10. Mongoose for Survey Creation/28. Feedback for User Feedback.vtt</code> (00:00–11:12) — redirectDomain keys, no relative links in email, GET /api/surveys/thanks</li>
+  <li id="n16"><code>10. Mongoose for Survey Creation/07. Relationship Fields.vtt</code> (00:00–05:01) — _user ObjectId ref user; <code>06. Setting up SubDocs.vtt</code> (00:17–01:14) — recipient responded default false</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

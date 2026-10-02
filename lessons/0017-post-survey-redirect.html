@@ -26,6 +26,10 @@
 <p>أي تبديل فـ بيانات التطبيق = <strong>action creator</strong>، ولهذا كنصاوبو <code>submitSurvey</code> فـ <code>src/actions/index.js</code>: كتاخد <code>values</code> كـ argument، وترجع object فيه <code>type</code> (مثلا <code>SUBMIT_SURVEY</code>) — غير باش الـ Redux ما يطيحش، بلا منطق آلي بعدا.<span class="cite"><a href="#n1">[1]</a></span></p>
 <p>الربط: <code>import * as actions</code> ودخّلو كـ الـ argument الثاني ديال <code>connect</code>، ومن بعد كتستقبلو كـ prop فـ <code>SurveyFormReview</code>. الـ زر كيعطيه <code>onClick</code> — وهنا الوثيقة ديال الـ traps: إلا كتبيتي <code>onClick={submitSurvey(formValues)}</code> غادي تنادى <strong>بلا ما تclicki</strong> (كتبان بحال نداء فـ render)، ولهذا كتغلّفها بـ arrow function.<span class="cite"><a href="#n1">[1]</a></span></p>
 <pre dir="ltr"><code>onClick={() =&gt; submitSurvey(formValues, history)}</code></pre>
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  إلا كتبيتي <code>onClick={submitSurvey(formValues)}</code> بلا arrow function، الـ POST كينادي غير منين يتفسّر الـ render — يعني الـ survey كتتصفط والـ credits كينقصو قبل ما الـ user يclicki والو. الإصلاح: خلي النداء موقوف حتى يوقع الـ click.
+</div>
 
 <h2>2 · تصفير القيم: قطع ذكي</h2>
 <p>الـ bug: ملي الـ user يclicki <strong>cancel</strong> ومن بعد يرجع للفورم، الـ inputs معمرين بحال والو. السبب: حططينا <code>destroyOnUnmount: false</code> على <code>SurveyForm</code>. ولكن حلها ماشي بـ handler على زر الـ cancel — حيت الـ user يقدر يخرج من الفورم بأي link آخر فالـ header.<span class="cite"><a href="#n2">[2]</a></span></p>
@@ -50,6 +54,14 @@
   dispatch({ type: 'fetch_user', payload: res.data });
   history.push('/surveys');
 };</code></pre>
+<ol class="seq">
+  <li><span class="from">SurveyFormReview</span> <span class="arrow">→</span> <span class="to">submitSurvey</span> <span class="what">formValues جايين من الـ form</span></li>
+  <li><span class="from">submitSurvey</span> <span class="arrow">→</span> <span class="to">axios</span> <span class="what">POST /api/surveys بـ values</span></li>
+  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">MongoDB</span> <span class="what">خصم credit و تسجيل survey</span></li>
+  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">submitSurvey</span> <span class="what">res.data = user model مجدّد</span></li>
+  <li><span class="from">submitSurvey</span> <span class="arrow">→</span> <span class="to">Redux store</span> <span class="what">dispatch fetch_user → header كيجدّد الرصيد</span></li>
+  <li><span class="from">submitSurvey</span> <span class="arrow">→</span> <span class="to">react-router</span> <span class="what">history.push('/surveys')</span></li>
+</ol>
 <ul>
   <li>الـ <code>POST /api/surveys</code> كيرجع <strong>الـ user model المجدّد</strong> (اللي خصّم من الـ credits)، ولهذا كنـ <code>dispatch</code> بو <code>fetch_user</code> — وهكذا الـ header كيupdate بـ الرصيد الجديد بلا refresh.<span class="cite"><a href="#n4">[4]</a></span></li>
   <li>الـ اختبار فالكورس: POST كيرجع <code>200</code>، الـ credits نقصو من 7 لـ 6، والـ email وصلات لـ inbox ديال الاختبار.<span class="cite"><a href="#n4">[4]</a></span></li>

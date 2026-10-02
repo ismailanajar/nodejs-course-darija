@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference 1 — Emaily: الـ architecture و الـ user flow</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">Reference · 0001 · Cheatsheet</p>
+  <h1>Emaily: الـ architecture و الـ user flow</h1>
+  <p class="dek">التطبيق كامل فورقة واحدة — شكون كيتكلم مع شكون، وشنو كيوقع فكل step.</p>
+  <p class="meta">Compressed from course sections 01–02 · Print this page</p>
+</header>
+
+<h2>التطبيق فجملة وحدة</h2>
+<p><strong>Emaily</strong> = تطبيق ديال feedback collection. الـ product owner كيدخل بـ Google OAuth، كيشري credits، وكيصيفط surveys بالإيميل؛ الـ recipients كي clickaw على link ويخلّيو feedback؛ والنتائج كتبان فـ dashboard ديالو.<span class="cite"><a href="#src1">[1]</a></span></p>
+
+<h2>الـ user flow</h2>
+<ol>
+  <li>الـ user كيسجّل ولا كيدخل بـ <strong>Google OAuth</strong> (بلا email + password).</li>
+  <li>كي<strong>يشري credits</strong> (Stripe) — الـ surveys كتصاوب credits باش تتصيفط.</li>
+  <li>كي<strong>يصاوب survey</strong> (title, subject, body, lista ديال recipients).</li>
+  <li>الـ survey emails كيتمشيو للـ recipients.</li>
+  <li>الـ recipient كي<strong>clicki على link</strong> فالإيميل ويخلّي feedback (yes/no).</li>
+  <li>الـ feedback كيرجع من خلال <strong>Stripe webhook</strong> &rarr; كيتصاوب معالجة &rarr; كيتسجّل.</li>
+  <li>الـ owner كيشوف <strong>النتائج فـ dashboard</strong> (الرصيد ديال credits + responses ديال surveys).<span class="cite"><a href="#src2">[2]</a></span></li>
+</ol>
+
+<h2>الـ architecture: شكون كيتكلم مع شكون</h2>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">Browser<small>user visits domain</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">Express server<small>serves HTML + React JS</small></div>
+  </div>
+  <div class="flow-row">
+    <div class="flow-node">React app<small>renders UI, asks for data</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">Express API<small>route handlers</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">MongoDB<small>stores surveys, users, credits</small></div>
+  </div>
+</div>
+
+<h3>الثلاث قوانين</h3>
+<ul>
+  <li>الـ browser كيتلقى HTML document + JavaScript files فيها الـ React app من السيرفر ديالنا.<span class="cite"><a href="#src3">[3]</a></span></li>
+  <li><strong>الـ React عمرو ما كيتكلم مع MongoDB مباشرة</strong> — غير كيسول لـ Express API.<span class="cite"><a href="#src3">[3]</a></span></li>
+  <li>الـ React "ما عندوش شنو يورّي" بلا data — كل screen كتبعّد بـ API response وحدة.<span class="cite"><a href="#src3">[3]</a></span></li>
+</ul>
+
+<h2>Node مقابل Express (فهاد المشروع)</h2>
+<table dir="ltr">
+  <tr><th>Thing</th><th>What it is</th></tr>
+  <tr><td><code>node</code></td><td>The JavaScript runtime the server executes on.</td></tr>
+  <tr><td><code>express</code></td><td>A framework layered on Node for routing, middleware, req/res.<span class="cite"><a href="#src4">[4]</a></span></td></tr>
+  <tr><td><code>app</code></td><td>The underlying running Express server.<span class="cite"><a href="#src5">[5]</a></span></td></tr>
+  <tr><td><code>app.get(...)</code></td><td>Creates a <strong>route handler</strong> watching for incoming HTTP <code>GET</code> requests.<span class="cite"><a href="#src5">[5]</a></span></td></tr>
+  <tr><td>HTTP methods</td><td><code>GET</code> fetch · <code>POST</code> send · <code>PUT/PATCH</code> update · <code>DELETE</code> remove — conventions for intent.<span class="cite"><a href="#src5">[5]</a></span></td></tr>
+</table>
+
+<h2>أهم الأوامر (server bootstrap)</h2>
+<pre><code>mkdir server &amp;&amp; cd server
+npm init                  # generates package.json — the project's central hub
+npm install --save express</code></pre>
+
+<h2 id="sources">Sources</h2>
+<ol style="font-size:0.85rem" dir="ltr">
+  <li id="src1">Course lecture 01 · <em>App Overview</em> — <code>01. Course Overview - Start Here!/03. App Overview.vtt</code></li>
+  <li id="src2">Course lecture 01 · <em>App User Flow Walkthrough</em> — <code>01. Course Overview - Start Here!/04. App User Flow Walkthrough.vtt</code></li>
+  <li id="src3">Course lecture 02 · <em>Application Architecture</em> (01:29–02:43) — <code>02. Server Side Architecture/01. Application Architecture.vtt</code></li>
+  <li id="src4">Course lecture 02 · <em>Relationship Between Node and Express</em> — <code>02. Server Side Architecture/02. Relationship Between Node and Express.vtt</code></li>
+  <li id="src5">Course lecture 02 · <em>Express Route Handlers</em> (01:03–02:54) — <code>02. Server Side Architecture/04. Express Route Handlers.vtt</code></li>
+</ol>
+
+<p class="nav-links"><a href="../lessons/0001-fullstack-architecture.html">&larr; الدرس 1.1</a><span>·</span><a href="../reference/0002-auth-mongoose-flow.html">Reference 0002</a><span>·</span><a href="../MISSION.md">المهمة</a></p>
+
+</main>
+</body>
+</html>

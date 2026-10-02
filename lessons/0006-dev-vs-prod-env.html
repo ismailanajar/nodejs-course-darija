@@ -22,19 +22,23 @@
 </div>
 
 <h2>1 · جوج sets ديال keys، ماشي وحدة</h2>
-<p>فـ <code>config/keys.js</code> ديالنا كامل الـ API keys: Google client ID و secret، المفتاح ديال cookies، و MongoDB URI — وهو الملف اللي كيتصاوب منو الـ <code>require('./config/keys')</code> فكل بلايص. المشكل: دابا عندنا <strong>set وحدة فقط</strong> ديال هاد الـ keys، والكورس كيقول بلي هادا غادي يجيب لينا مشاكل.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>كامل الـ secrets مجموعين فـ <code>config/keys.js</code>: الـ Google client ID والـ secret، المفتاح ديال cookies، والـ MongoDB URI — وأي ملف فالمشروع كيجيبهم بـ <code>require('./config/keys')</code>. المشكل هو أن عندنا غير <strong>set وحدة</strong> خدامة للكل، وهادشي غادي يدير مشاكل ملي نوصلو للـ deploy. علاش هادي مهمة ملي تخدم لـclient: حيت أول شرط قبل ما تسلّم أي مشروع هو تفرّق keys ديال التطوير على keys ديال الـ production.<span class="cite"><a href="#n1">[1]</a></span></p>
 <p>الحل: <strong>جوج sets منفصلين</strong> — set ديال development للّابتوب ديالك (Mongo ديالك، Google API ديالك، cookies ديالك)، و set آخر تماما ديال production اللي هو الـ deployment ديالنا فوق Heroku.<span class="cite"><a href="#n1">[1]</a></span> علاش؟ جوج أسباب:</p>
 <ul>
   <li><strong>الأمان:</strong> الـ production keys كيتسجلو بعيدا على خوادم Heroku، والـ dev keys كيبقاو غير على اللابتوب. اللابتوب ممكن يتسرق، وفوقو ملف نصّي فيه كامل الـ keys — اللي كيولّيه القدرة على MongoDB ديالك و Google API و cookies ديال users. بصح credentials ديال dev، نمسحوها ونبدلوها؛ أما credentials ديال production فمتبقاوش فراس اللابتوب.<span class="cite"><a href="#n1">[1]</a></span></li>
   <li><strong>جوج databases:</strong> الـ production database خاصها تكون نظيفة فيها غير data ديال users وكيتتعامل بيها بحذر دائم. أما dev فنقدرو نزيدو records ونمسحو collections ونبدلو كلشي بلا خوف نكسرو شي production data.<span class="cite"><a href="#n1">[1]</a></span></li>
 </ul>
-<div class="flow">
-  <div class="flow-row">
-    <div class="flow-node">Laptop / dev<small>config/dev.js (git-ignored)</small></div>
-    <div class="flow-arrow">vs</div>
-    <div class="flow-node">Heroku / production<small>process.env (config/prod.js)</small></div>
+<div class="compare">
+  <div>
+    <span class="tag">dev فوق اللابتوب</span>
+    <code>config/dev.js</code> — قيم حقيقية ديال <code>emaily-dev</code>، وما كيتمشّاش لـ git.
+  </div>
+  <div>
+    <span class="tag">production فوق Heroku</span>
+    <code>config/prod.js</code> — قيم جايين من <code>process.env</code> ديال <code>emaily-prod</code>.
   </div>
 </div>
+<p class="mono">كيفاش تقرا هاد المخطط: قارن العمودين — نفس الـ keys، ولكن المصدر والقيمة كيتبدلو حسب فين خدام الكود.</p>
 
 <h2>2 · resources منفصلة من البداية</h2>
 <p>التقسيم ماشي غير ديال الكود: خاصك <strong>resources حقيقيين منفصلين</strong>. فـ MongoDB Atlas نصاوبو database جديد (سميناه <code>emaily-prod</code>، والديال dev هو <code>emaily-dev</code> اللي كيبان فـ dashboard ديالك) مع database user جديد بـ credentials مختلفة على ديال dev.<span class="cite"><a href="#n2">[2]</a></span></p>
@@ -53,17 +57,18 @@ if (process.env.NODE_ENV === 'production') {
 <p>وأخيرا تقسيم الـ git: <code>dev.js</code> كيتضاف لـ <code>.gitignore</code> (ما كيتصدّش)، أما <code>keys.js</code> و <code>prod.js</code> <strong>كيت-commitو</strong> — وإلا ما commitinash <code>prod.js</code>، الـ Heroku server غادي يقلب على الملف ملي يخدم و ما يلقاش ويرمي error ضخم.<span class="cite"><a href="#n4">[4]</a></span></p>
 <div class="compare">
   <div class="col-good">
-    <span class="tag">كيت-commit للـ repo</span>
+    <span class="tag">آمن: كيتمشّى لـ git</span>
     <code>keys.js</code> + <code>prod.js</code> — غير logic و قيم جايين من <code>process.env</code>، حتى مفتاح واحد ما كاين فهاد الملفين.<span class="cite"><a href="#n4">[4]</a></span>
   </div>
   <div class="col-bad">
-    <span class="tag">ما كيتصدّش أبدا</span>
+    <span class="tag">خطير: ما كيتمشّاش أبدا</span>
     <code>dev.js</code> — فيه raw keys حقيقية ديال dev، وزيدو فـ <code>.gitignore</code> باش ما يوصلش لـ repo.
   </div>
 </div>
+<p class="mono">كيفاش تقرا هاد المخطط: العمود الخضر هو المسموح فـ git، والحمر هو الممنوع — شوف شنو كاين داخل كل ملف.</p>
 
 <h2>4 · environment variables فوق المنصة + قاعدة الـ HTTPS</h2>
-<p>فين كيتصايبو القيم ديال <code>process.env</code>؟ فوق المنصة ديال deployment. فـ <strong>Heroku</strong>: dashboard ديال الـ app &rarr; tab ديال <strong>Settings</strong> &rarr; config variables (key/value pairs).<span class="cite"><a href="#n5">[5]</a></span> وفـ <strong>Render</strong> (بديل Heroku بلا free tier): sidebar &rarr; <strong>Environment</strong> &rarr; زر <strong>Add Environment Variable</strong>، وتزيد pair pair: <code>COOKIE_KEY</code> (أي string عشوائي)، <code>GOOGLE_CLIENT_ID</code> و <code>GOOGLE_CLIENT_SECRET</code> من Google Project Dashboard &rarr; APIs and Services &rarr; Credentials &rarr; OAuth 2.0 Client ID، و <code>MONGO_URI</code>.<span class="cite"><a href="#n6">[6]</a></span></p>
+<p>فين كيتصايبو القيم ديال <code>process.env</code>؟ فوق المنصة ديال deployment. فـ <strong>Heroku</strong>: dashboard ديال الـ app → tab ديال <strong>Settings</strong> → config variables (key/value pairs).<span class="cite"><a href="#n5">[5]</a></span> وفـ <strong>Render</strong> (بديل Heroku بلا free tier): sidebar → <strong>Environment</strong> → زر <strong>Add Environment Variable</strong>، وتزيد pair pair: <code>COOKIE_KEY</code> (أي string عشوائي)، <code>GOOGLE_CLIENT_ID</code> و <code>GOOGLE_CLIENT_SECRET</code> من Google Project Dashboard → APIs and Services → Credentials → OAuth 2.0 Client ID، و <code>MONGO_URI</code>.<span class="cite"><a href="#n6">[6]</a></span></p>
 <p>وآخر مصيبة كتجي بعد الـ deploy: <strong>redirect_uri mismatch</strong>. Google كيشوف <code>http://...herokuapp.com</code> بينما نحنا سجلنا <code>https://...</code> فـ authorized redirect URI — يعني شي حاجة كترجّع الـ flow لـ HTTP بدل HTTPS.<span class="cite"><a href="#n7">[7]</a></span> القاعدة اللي خاصك تحطها فراسك: <strong>كلشي مربوط بـ auth خاصو يكون HTTPS</strong> حيت كيتصرف مع بيانات حساسة.<span class="cite"><a href="#n7">[7]</a></span></p>
 <div class="callout pitfall">
   <span class="label">نتيجة كتجي غلط</span>

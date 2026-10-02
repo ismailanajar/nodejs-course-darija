@@ -49,6 +49,10 @@ npm install --save passport-google-oauth20</code></pre>
   <li>تنبيه مهم بزاف: الـ key خاصها <strong>capital D</strong> (<code>clientId</code>) — الكورس طلب triple check حيت typo صغير كيسبب أخطاء صعيبة.<span class="cite"><a href="#n7">[7]</a></span></li>
   <li>عنّا <code>callbackURL</code> options: هادي هي الرابط اللي Google غادي يرجّع بيه الـ user من بعد ما يعطي الإذن.<span class="cite"><a href="#n7">[7]</a></span></li>
 </ul>
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  منين تجرب الـ flow، إلا كان الـ <code>callbackURL</code> اللي فـ code ماشي نفسو اللي مسجل عند Google، غادي تطيح بـ <code>Error: redirect_uri_mismatch</code>. الحل: سجّل نفس الرابط بالضبط (نفس base ونفس query string) فـ <strong>Authorized redirect URIs</strong> ديال Google Console.
+</div>
 
 <h2>4 · كيفاش كيتجرّب الـ flow</h2>
 <p>الـ strategy كتاخد: <strong>أول argument</strong> = object ديال options، و <strong>الثاني</strong> = arrow function callback (غادي نهضرو عليها بالتفصيل ف الدرس الجاي).<span class="cite"><a href="#n8">[8]</a></span></p>
@@ -58,6 +62,14 @@ npm install --save passport-google-oauth20</code></pre>
   <li>أول مرة: غادي تشوف <strong>"Redirect URI Mismatch"</strong> — خاصك تسجّل الـ redirect URI عند Google (نفس الرابط بالضبط).<span class="cite"><a href="#n9">[9]</a></span></li>
   <li>من بعد التسجيل: كتختار الحساب وتولّي <strong>"cannot get /auth/google/callback"</strong> — علاش؟ حيت مازال ما صاوبيناش الـ route handler ديال الـ callback.<span class="cite"><a href="#n10">[10]</a></span></li>
   <li>الـ strategy كيشوف <strong>code</strong> اللي فالـ URL وكيدوز <strong>request تاني</strong> لـ Google باش يبدلو بـ profile ديال الـ user، ومن بعد كتنادي الـ callback وكيتبان <strong>access token</strong> فـ terminal.<span class="cite"><a href="#n11">[11]</a></span></li>
+</ol>
+<ol class="seq">
+  <li><span class="from">Client</span> <span class="arrow">→</span> <span class="to">Server</span> <span class="what">GET /auth/google</span></li>
+  <li><span class="from">Server</span> <span class="arrow">→</span> <span class="to">Google</span> <span class="what">redirect بـ clientID + callbackURL</span></li>
+  <li><span class="from">Google</span> <span class="arrow">→</span> <span class="to">Client</span> <span class="what">صفحة الاختيار — بعد الإذن، redirect بـ code</span></li>
+  <li><span class="from">Client</span> <span class="arrow">→</span> <span class="to">Server</span> <span class="what">GET /auth/google/callback?code=...</span></li>
+  <li><span class="from">Server</span> <span class="arrow">→</span> <span class="to">Google</span> <span class="what">استبدال الـ code بـ profile ديال user</span></li>
+  <li><span class="from">Server</span> <span class="arrow">→</span> <span class="to">Client</span> <span class="what">الـ user مسجّل فالتطبيق</span></li>
 </ol>
 <p>وخدمة صغيرة: الكورس نصب <strong>nodemon</strong> باش السيرفر يعاود يتشغل وحدي من كل تبديل ف الكود — بلا ما تدير Ctrl+C و<code>node index.js</code> كل مرة.<span class="cite"><a href="#n12">[12]</a></span></p>
 

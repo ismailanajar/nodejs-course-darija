@@ -248,6 +248,113 @@ th {
   font-size: 0.9rem;
 }
 
+/* --- Diagram components (reuse across lessons) --- */
+
+/* Layer stack: who sits on top of whom */
+.stack { margin: 0 0 1.2rem; border: 1px solid var(--rule); background: #fff; }
+.stack-layer {
+  display: flex; gap: 0.75rem; align-items: baseline;
+  padding: 0.55rem 0.8rem; border-bottom: 1px solid var(--rule);
+  font-size: 0.9rem;
+}
+.stack-layer:last-child { border-bottom: 0; }
+.stack-layer b {
+  flex: none; min-width: 7rem;
+  font-family: "SF Mono", Consolas, monospace;
+  font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent);
+}
+.stack-layer span { color: var(--ink-soft); }
+
+/* Sequence: numbered messages from → to */
+.seq { list-style: none; margin: 0 0 1.2rem; padding: 0; counter-reset: seq; }
+.seq li {
+  counter-increment: seq;
+  display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
+  padding: 0.5rem 0.65rem; margin-bottom: 0.4rem;
+  border: 1px solid var(--rule); border-radius: 4px; background: #fff;
+  font-size: 0.88rem;
+}
+.seq li::before {
+  content: counter(seq);
+  flex: none; width: 1.35rem; height: 1.35rem; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-family: "SF Mono", Consolas, monospace; font-size: 0.7rem; font-weight: bold;
+  line-height: 1.35rem; text-align: center;
+}
+.seq .from, .seq .to { font-weight: bold; }
+.seq .arrow { color: var(--accent); font-family: monospace; }
+[dir="rtl"] .seq .arrow { display: inline-block; transform: scaleX(-1); }
+.seq .what { color: var(--ink-soft); }
+
+/* Cycle: a loop (dispatch → reducer → render → …) */
+.cycle {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;
+  margin: 0; padding: 0.6rem 0.7rem;
+  border: 1px solid var(--rule); border-bottom: 0; background: #fff;
+}
+.cycle .cyc-node {
+  border: 1px solid var(--ink); padding: 0.35rem 0.65rem;
+  font-size: 0.85rem; background: var(--paper);
+}
+.cycle .cyc-arrow { color: var(--accent); font-family: monospace; }
+[dir="rtl"] .cycle .cyc-arrow { display: inline-block; transform: scaleX(-1); }
+.cycle-return {
+  border: 1px dashed var(--accent); border-top: 0;
+  background: var(--accent-soft); color: var(--ink-soft);
+  font-size: 0.8rem; padding: 0.4rem 0.7rem; margin-bottom: 1.2rem;
+}
+.cycle-return::before { content: "↺ "; color: var(--accent); }
+
+/* Steps: vertical numbered timeline */
+.steps { list-style: none; margin: 0 0 1.2rem; padding: 0; counter-reset: st; }
+.steps > li {
+  counter-increment: st; position: relative;
+  margin-inline-start: 0.75rem;
+  padding-inline-start: 1.9rem; padding-block-end: 0.85rem;
+  border-inline-start: 2px solid var(--rule);
+  font-size: 0.92rem;
+}
+.steps > li:last-child { border-inline-start-color: transparent; padding-block-end: 0; }
+.steps > li::before {
+  content: counter(st);
+  position: absolute; inset-inline-start: -0.9rem; top: -0.1rem;
+  width: 1.6rem; height: 1.6rem; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-family: "SF Mono", Consolas, monospace; font-size: 0.78rem; font-weight: bold;
+  line-height: 1.6rem; text-align: center;
+}
+.steps li b { display: block; }
+
+/* Compare: two columns (صحيح/غلط، قبل/من بعد) */
+.compare {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;
+  margin: 0 0 1.2rem;
+}
+.compare > div {
+  border: 1px solid var(--rule); background: #fff;
+  padding: 0.6rem 0.75rem; font-size: 0.87rem;
+}
+.compare .tag {
+  display: block; margin-bottom: 0.3rem;
+  font-family: "SF Mono", Consolas, monospace;
+  font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.compare .col-good { border-color: var(--ok); }
+.compare .col-good .tag { color: var(--ok); }
+.compare .col-bad { border-color: var(--bad); }
+.compare .col-bad .tag { color: var(--bad); }
+@media (max-width: 560px) { .compare { grid-template-columns: 1fr; } }
+
+/* Explanation aids */
+.callout.pitfall { background: var(--bad-bg); border-left-color: var(--bad); }
+.callout.pitfall .label { color: var(--bad); }
+[dir="rtl"] .callout.pitfall { border-right-color: var(--bad); }
+.callout.analogy { background: var(--ok-bg); border-left-color: var(--ok); }
+.callout.analogy .label { color: var(--ok); }
+[dir="rtl"] .callout.analogy { border-right-color: var(--ok); }
+
 /* --- RTL (Arabic-script prose, Latin technical terms) --- */
 [dir="rtl"] { text-align: right; }
 [dir="rtl"] ul, [dir="rtl"] ol { padding-right: 1.3rem; padding-left: 0; }
@@ -272,5 +379,6 @@ th {
   .opt { border: 1px solid #999; }
   a { color: #000; text-decoration: none; }
   .masthead, h2 { break-after: avoid; }
-  .quiz-q, .opt, pre, table { break-inside: avoid; }
+  .quiz-q, .opt, pre, table, .seq li, .stack, .compare, .cycle { break-inside: avoid; }
+  .steps > li { break-inside: avoid; }
 }

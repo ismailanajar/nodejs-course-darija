@@ -89,6 +89,22 @@ Model: `reference/0001-emaily-architecture.html` (read it).
 - Prose/headings Arabic script (technical terms Latin); tables, code, file paths, source list LTR English (`dir="ltr"` on those blocks).
 - No quiz, no callout win, no forbidden blocks.
 
+## Diagram & explanation components (HARD: use these, never invent new classes)
+
+All defined in `assets/lesson.css` — pick whatever fits the concept:
+
+| Component | HTML shape | Use when |
+|---|---|---|
+| **Stack** | `<div class="stack"><div class="stack-layer"><b>Browser</b><span>React app</span></div>…</div>` | layers on top of each other (browser → Express → MongoDB) |
+| **Sequence** | `<ol class="seq"><li><span class="from">Browser</span> <span class="arrow">→</span> <span class="to">Server</span> <span class="what">GET /auth/google</span></li>…</ol>` | ordered messages between parties (OAuth dance, request lifecycle, webhooks) — max 7 rows |
+| **Cycle** | `<div class="cycle"><span class="cyc-node">Component</span><span class="cyc-arrow">→</span>…</div><div class="cycle-return">رجوع للـ Component</div>` | loops (dispatch → reducer → re-render) |
+| **Steps** | `<ol class="steps"><li><b>Title</b>شرح قصير…</li>…</ol>` | a procedure with an order (deploy checklist, wizard pages) |
+| **Compare** | `<div class="compare"><div><span class="tag">…</span>نص</div><div>…</div></div>` — add `col-good` / `col-bad` classes on the columns | right vs wrong, before vs after, option A vs B |
+| **Analogy aid** | `<div class="callout analogy"><span class="label">بأي مثال</span>…</div>` | concept is abstract → one real-world analogy (1–3 sentences) |
+| **Pitfall aid** | `<div class="callout pitfall"><span class="label">نتيجة كتجي غلط</span>…</div>` | a mistake learners actually make → show the symptom + the fix |
+
+Rules for diagrams: Arabic-script labels + Latin technical terms; always write the arrow as `→` (CSS flips it in RTL); self-contained (no SVG/JS/CDN needed — pure HTML+CSS); one diagram per concept, ≤ 7 rows; place it immediately after the paragraph it explains. Aids replace vague prose — don't stack more than 2 aids in one lesson.
+
 ## Quality bar
 
 - Completable in 10–15 minutes; working memory is small — cut anything not needed for the one win.

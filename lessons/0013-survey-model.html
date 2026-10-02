@@ -38,6 +38,10 @@
 </div>
 <p>وقاعدة الاختيار هي: <strong>subdocuments كنستعملوهم ملي بغاو association واضح وstrong بين جوج records</strong>. الـ recipient ماعندو حتى معنى بلا الـ survey ديالو — يعني ملكية واضحة (ownership).<span class="cite"><a href="#n4">[4]</a></span></p>
 <p>ولكن علاش users ما عندهمش list ديال surveys كـ subdocuments؟ حيت عند MongoDB <strong>limit ديال 4MB لكل document</strong>. بـ20 bytes للمتوسط ديال email، وحدة survey كتتّسع لـ تقريباً <strong>200,000 emails</strong> — مقبول. ولكن إلا حطينا surveys كاملة داخل user، نفس الـ user كيغلق عندو 200,000 emails ديال surveys كاملين... والمشكل كيولي شي super user كيصرف فلوس وما يقدّرش يزيد.<span class="cite"><a href="#n4">[4]</a></span></p>
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  حطيتي surveys كاملة داخل user document: أول ما واحد يزيد آلاف الـ recipients، الـ document كيقرّب من limit ديال 4MB وكيرفض الكتابة. الحل: recipients داخل survey كـ subdocuments، والربط مع الـ user عبر <code>_user</code> كـ reference field.
+</div>
 <pre dir="ltr"><code>// models/recipient.js
 new Schema({ email: String, responded: { type: Boolean, default: false } });</code></pre>
 
@@ -50,6 +54,14 @@ new Schema({ email: String, responded: { type: Boolean, default: false } });</co
   <li>وزدنا <code>dateSent</code> و <code>lastResponded</code> بـ <code>Date</code> — ماشي ضروريين للـ app، ولكن كيعطيو لـ owner فكرة واش الـ survey مازال active.<span class="cite"><a href="#n6">[6]</a></span></li>
 </ul>
 <p>يعني الفرق بجوج سطر: <strong>subdocument</strong> = ملكية داخلية (recipients داخل survey)، <strong>relationship field</strong> = رابط بين جوج collections (survey &rarr; user).</p>
+<div class="compare">
+  <div><span class="tag">subdocument</span>recipients داخل نفس الـ survey: <code>{ email, responded }</code> — ملكية داخلية، وكل تصويت كيتربط بالsurvey ديالو.</div>
+  <div><span class="tag">relationship field</span><code>_user</code>: <code>ObjectId</code> بـ <code>ref: 'user'</code> — غير رابط خفيف بين جوج collections.</div>
+</div>
+<div class="callout analogy">
+  <span class="label">بأي مثال</span>
+  الـ <code>_user</code> بحال رقم بطاقة التعريف المكتوب على ملف: خفيف وغير كيشير لشكون مول الملف بلا ما تنسخ الملف كامل. أما الـ recipients بحال الوراق اللي لداخل ديال نفس الملف: ما عندهم حتى معنى خارج الملف ديالهم.
+</div>
 
 <h2>4 · الحماية والتنفيذ: requireLogin ثم requireCredits</h2>
 <p>الـ <code>Survey</code> model خاصو يتطلب من <code>index.js</code> (و <code>Recipient</code> كيتطلب من <code>survey.js</code> راسو)، ومن بعد كنصاوبو ملف جديد <code>routes/surveyRoutes.js</code> فيه <code>app.post('/api/surveys', ...)</code>.<span class="cite"><a href="#n7">[7]</a></span></p>
@@ -57,6 +69,12 @@ new Schema({ email: String, responded: { type: Boolean, default: false } });</co
 <pre dir="ltr"><code>app.post('/api/surveys', requireLogin, requireCredits, handler);
 // 1) مسجّل؟  2) عندو credit؟  3) صاوب الـ survey</code></pre>
 <p><strong>الترتيب مهم</strong>: خاص الـ user يكون مسجّل قبل ما نطلبو منو credits، والجوج قبل ما نديرو أي logic.<span class="cite"><a href="#n8">[8]</a></span> من بعد، فالـ handler: <code>const survey = new Survey({ title, subject, body, recipients: [...] })</code> — Mongoose كيصاوب الـ subdocuments راسو من غير ما نعرفوهم.<span class="cite"><a href="#n10">[10]</a></span></p>
+<ol class="seq">
+  <li><span class="from">Browser</span> <span class="arrow">→</span> <span class="to">requireLogin</span> <span class="what">واش الـ user مسجل؟ إلا لا كيرجع خطأ</span></li>
+  <li><span class="from">requireLogin</span> <span class="arrow">→</span> <span class="to">requireCredits</span> <span class="what">واش عندو credit؟ إلا لا كيرجع 403</span></li>
+  <li><span class="from">requireCredits</span> <span class="arrow">→</span> <span class="to">handler</span> <span class="what">كيصاوب Survey مع recipients كـ subdocuments</span></li>
+  <li><span class="from">handler</span> <span class="arrow">→</span> <span class="to">MongoDB</span> <span class="what">كيحفظ الـ survey فـ surveys collection</span></li>
+</ol>
 <pre dir="ltr"><code>recipients: emails.split(',').map(email =&gt; ({ email: email.trim() }))  // trim قبل</code></pre>
 <p class="mono" style="font-size:0.8rem;color:var(--ink-faint)">المرجع: <a href="../reference/0005-survey-model-mailer.html">Reference 0005 — Survey Model &amp; Mailer Cheatsheet</a></p>
 

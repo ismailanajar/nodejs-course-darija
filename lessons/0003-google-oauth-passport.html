@@ -22,17 +22,18 @@
 </div>
 
 <h2>1 · البداية: أول feature</h2>
-<p>الكورس قال: أول حاجة غادي نبنيوها فهاد التطبيق هي <strong>الـ sign up بـ Google OAuth</strong> (خطوة 1 ديال الـ user flow اللي شفناها ف الدرس 1.1)، وعلاش هو التخصام ديال domain مخصص غادي نهضرو عليه من بعد.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>أول feature غادي نبنيو هي الدخول بـ Google OAuth — هي نفس خطوة التسجيل اللي شفنا فالدرس اللي فات، بلا ما نصاوبو passwords من الصفر.<span class="cite"><a href="#n1">[1]</a></span> علاش هادي مهمة ملي تخدم لـclient: حيت الـ login الساهل كيزيد الثقة وكيخلي المستعملين يدخلو بلا مشاكل.</p>
 <p>الـ diagram ديال الـ flow كيتقسم لـ <strong>ثلاث columns: Client، Server، Google</strong> — كل خطوة فيها كتبدا من شي column وتمشي لل الأخرى.<span class="cite"><a href="#n2">[2]</a></span></p>
 <div class="flow">
   <div class="flow-row">
     <div class="flow-node">Client<small>browser ديال user</small></div>
-    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-arrow">→</div>
     <div class="flow-node">Server<small>سيرفرنا Express</small></div>
-    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-arrow">→</div>
     <div class="flow-node">Google<small>OAuth service</small></div>
   </div>
 </div>
+<p class="mono">كيفاش تقرا هاد المخطط: ثلاثة أطراف كيشاركو — قرا من اليسار لليمين شكون كيكلم شكون.</p>
 
 <h2>2 · شنو كيدير Passport JS؟</h2>
 <p><strong>Passport</strong> = helper library كتاخد علينا خطوات معينة من الـ flow (اللي فالـ diagram كيتعرضو بـ yellow box) بلا ما نكتبوا boilerplate بزاف.<span class="cite"><a href="#n3">[3]</a></span> بصح الكورس نبّه على <strong>مشتين كبار</strong> حول Passport: خاصك تعرف شنو بالضبط كيدير، وإلا ما غاديش تفهم كيفاش كيمشي.<span class="cite"><a href="#n3">[3]</a></span></p>
@@ -57,20 +58,21 @@ npm install --save passport-google-oauth20</code></pre>
 <h2>4 · كيفاش كيتجرّب الـ flow</h2>
 <p>الـ strategy كتاخد: <strong>أول argument</strong> = object ديال options، و <strong>الثاني</strong> = arrow function callback (غادي نهضرو عليها بالتفصيل ف الدرس الجاي).<span class="cite"><a href="#n8">[8]</a></span></p>
 <ol>
-  <li>الـ user كيحل <code>/auth/google</code> &rarr; السيرفر كيبعثو لـ Google.<span class="cite"><a href="#n8">[8]</a></span></li>
-  <li>الـ user كيختار حسابو ويسمح للتطبيق &rarr; Google كيرجّعو لـ <code>localhost:5000/auth/google/callback</code>.<span class="cite"><a href="#n8">[8]</a></span></li>
+  <li>الـ user كيحل <code>/auth/google</code> → السيرفر كيبعثو لـ Google.<span class="cite"><a href="#n8">[8]</a></span></li>
+  <li>الـ user كيختار حسابو ويسمح للتطبيق → Google كيرجّعو لـ <code>localhost:5000/auth/google/callback</code>.<span class="cite"><a href="#n8">[8]</a></span></li>
   <li>أول مرة: غادي تشوف <strong>"Redirect URI Mismatch"</strong> — خاصك تسجّل الـ redirect URI عند Google (نفس الرابط بالضبط).<span class="cite"><a href="#n9">[9]</a></span></li>
   <li>من بعد التسجيل: كتختار الحساب وتولّي <strong>"cannot get /auth/google/callback"</strong> — علاش؟ حيت مازال ما صاوبيناش الـ route handler ديال الـ callback.<span class="cite"><a href="#n10">[10]</a></span></li>
   <li>الـ strategy كيشوف <strong>code</strong> اللي فالـ URL وكيدوز <strong>request تاني</strong> لـ Google باش يبدلو بـ profile ديال الـ user، ومن بعد كتنادي الـ callback وكيتبان <strong>access token</strong> فـ terminal.<span class="cite"><a href="#n11">[11]</a></span></li>
 </ol>
 <ol class="seq">
   <li><span class="from">Client</span> <span class="arrow">→</span> <span class="to">Server</span> <span class="what">GET /auth/google</span></li>
-  <li><span class="from">Server</span> <span class="arrow">→</span> <span class="to">Google</span> <span class="what">redirect بـ clientID + callbackURL</span></li>
-  <li><span class="from">Google</span> <span class="arrow">→</span> <span class="to">Client</span> <span class="what">صفحة الاختيار — بعد الإذن، redirect بـ code</span></li>
+  <li><span class="from">Server</span> <span class="arrow">→</span> <span class="to">Google</span> <span class="what">redirect مع clientID و callbackURL</span></li>
+  <li><span class="from">Google</span> <span class="arrow">→</span> <span class="to">Client</span> <span class="what">redirect إلى /auth/google/callback?code=...</span></li>
   <li><span class="from">Client</span> <span class="arrow">→</span> <span class="to">Server</span> <span class="what">GET /auth/google/callback?code=...</span></li>
-  <li><span class="from">Server</span> <span class="arrow">→</span> <span class="to">Google</span> <span class="what">استبدال الـ code بـ profile ديال user</span></li>
-  <li><span class="from">Server</span> <span class="arrow">→</span> <span class="to">Client</span> <span class="what">الـ user مسجّل فالتطبيق</span></li>
+  <li><span class="from">Server</span> <span class="arrow">→</span> <span class="to">Google</span> <span class="what">يبدل code بـ accessToken و profile</span></li>
+  <li><span class="from">Server</span> <span class="arrow">→</span> <span class="to">Client</span> <span class="what">req.user واجد والدخول سالا</span></li>
 </ol>
+<p class="mono">كيفاش تقرا هاد المخطط: كل سطر رسالة وحدة بالترتيب — شوف شكون صيفط لمن وشنو بالضبط.</p>
 <p>وخدمة صغيرة: الكورس نصب <strong>nodemon</strong> باش السيرفر يعاود يتشغل وحدي من كل تبديل ف الكود — بلا ما تدير Ctrl+C و<code>node index.js</code> كل مرة.<span class="cite"><a href="#n12">[12]</a></span></p>
 
 <h2>5 · ممارسة retrieval</h2>

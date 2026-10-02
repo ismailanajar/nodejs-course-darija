@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 4 — MongoDB و Mongoose: connection + models + queries</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 4 · Course sections 04</p>
+  <h1>MongoDB و Mongoose: connection + models + queries</h1>
+  <p class="dek">الـ OAuth رجع بيك بـ profile ديال الـ user — دابا خاصنا مكان نخزّنوه فيه، وهاذاك هو MongoDB مع Mongoose.</p>
+  <p class="meta">~10 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تصاوب model ديال <code>User</code>، تسجّل أول user من الـ OAuth flow، وتعرف كيفاش تسول بـ profile ID باش ما يتعملوش records مكررين — بالضبط اللي كيفرق ما بين demo وتطبيق خدام لـclient.
+</div>
+
+<h2>1 · علاش خاصنا database أصلا؟</h2>
+<p>الكورس بدا بسؤال كبير: علاش خاصنا database، علاش cookie، علاش OAuth؟ وعطى القاعدة الأولى:<strong>الـ HTTP stateless</strong>. بين جوج requests منطقيين، السيرفر ما عندو حتى طريقة باش يعرف شكون ولا يشارك معلومات.<span class="cite"><a href="#n1">[1]</a></span> يعني إلا ما خزّنّاش الـ user فأي حاجة، كل request جديدة غادي تبدا من الصفر.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>وفالحالة ديالنا: الكورس أولاً فسّر sign-in بـ email + password باش نفهمو المبدأ، ومن بعد دار pivot للـ OAuth flow — نفس المبدأ بس غير الطريقة كتبدل.<span class="cite"><a href="#n2">[2]</a></span></p>
+
+<h2>2 · فين كنحطو الكود و فين كنحطو الداتا؟</h2>
+<ul>
+  <li>ما كاين حتى <strong>convention قوي</strong> فـ community ديال Express على تنظيم المشاريع — الكورس عطى طريقة خدامة معانا: <code>config</code> (API keys وإعدادات)، <code>routes</code> (ملف لكل مجموعة ديال routes)، و<code>models</code>.<span class="cite"><a href="#n3">[3]</a></span></li>
+  <li>الهدف: كل ما شي حد دخل عبر الـ OAuth، نصاوبو <strong>record واحد</strong> ديالو فـ database.<span class="cite"><a href="#n4">[4]</a></span></li>
+  <li> MongoDB عندك جوج طرق: تنصب نسخة <strong>محلية</strong> على laptop ديالك، ولا تใชى <strong>instance مستضافة</strong> عند طرف ثالث. الكورس اختار الثانية حيت التنصيب المحلي ممكن يوقع فيه مشاكل (و"real pain" بحسب الكورس).<span class="cite"><a href="#n5">[5]</a></span></li>
+</ul>
+
+<h2>3 · Connection: Mongoose &rarr; Mongo</h2>
+<pre><code>npm install --save mongoose</code></pre>
+<p>من بعد فـ <code>index.js</code>، فـ أعلى الملف وتحت مباشرة ديال <code>require</code> ديال Express، كنبنو Mongoose ونديرو الـ connection — <strong>قبل ما نعرفو الـ <code>app</code> object</strong>.<span class="cite"><a href="#n6">[6]</a></span></p>
+
+<h2>4 · Model &rarr; save &rarr; query</h2>
+<ol>
+  <li>نصاوبو <code>models/user.js</code> (جديد folder + file)، نطلبو mongoose من فوق، ومن object ديالو نجيبو <code>schema</code>.<span class="cite"><a href="#n7">[7]</a></span></li>
+  <li>الـ <strong>model class</strong> كيمثّل <strong>collection كاملة</strong> ديال records فـ Mongo.<span class="cite"><a href="#n7">[7]</a></span></li>
+  <li>الـ save كيوقع فـ <strong>Google strategy callback</strong>، اللي عندو <code>accessToken</code>، <code>refreshToken</code> و <code>profile</code> — والـ profile فيه الـ <strong>Google user ID</strong> اللي باغين نخزّنو.<span class="cite"><a href="#n8">[8]</a></span></li>
+  <li>المشكل: إلا درتي <code>new User().save()</code> بلا سؤال، كل مرة الـ user يدخل كيتسجّل record جديد بنفس الـ Google ID.<span class="cite"><a href="#n9">[9]</a></span> الحل: <strong>قبل</strong> ما تصاوب جديد، سول واش شي حد عندو نفس الـ profile ID.<span class="cite"><a href="#n9">[9]</a></span></li>
+  <li>الـ query فـ Mongo <strong>asynchronous</strong> &rarr; كترجع <strong>promise</strong>، وعليها <code>.then(existingUser =&gt; ...)</code>. الـ <code>existingUser</code> يا مثيل (instance) ديال الموديل يا <code>null</code>.<span class="cite"><a href="#n10">[10]</a></span></li>
+  <li>فالأخير كتنادي <code>done(...)</code> باش تفوّت النتيجة لـ Passport.<span class="cite"><a href="#n10">[10]</a></span></li>
+</ol>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">OAuth callback<small>profile يوصل</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">User.findOne<small>بحسب googleId</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">لقيتيه؟<small>استعملو</small></div>
+    <div class="flow-arrow">/</div>
+    <div class="flow-node">null؟<small>new User().save()</small></div>
+  </div>
+</div>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تحل شي حاجة. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> شنو خاصك تعمل قبل ما تصاوب user جديد فـ MongoDB؟</p>
+  <button class="opt">نصب React من جديد فمشروعنا كامل</button>
+  <button class="opt">سول Google على client secret جديد</button>
+  <button class="opt" data-correct>شوف واش عندنا نفس profile ID</button>
+  <button class="opt">قتل الـ server وعاود شغلو هنا</button>
+  <p class="explain">الكورس شاف problem ديال جوج records بنفس الـ Google ID، والحل هو query قبل ما تصاوب record جديد.<span class="cite"><a href="#n9">[9]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> فين خاص <code>mongoose.connect</code> يتزاد؟</p>
+  <button class="opt">داخل أول route handler ديالنا هنا</button>
+  <button class="opt">من بعد app.listen بزاف ديال المرات</button>
+  <button class="opt">فـ React component ديال login عندنا</button>
+  <button class="opt" data-correct>قبل ما نعرفو الـ app object</button>
+  <p class="explain">الكورس حط الـ connection فـ أعلى <code>index.js</code> وتحت مباشرة ديال <code>require</code> ديال Express، قبل تعريف الـ <code>app</code>.<span class="cite"><a href="#n6">[6]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> علاش الكورس اختار MongoDB مستضاف عن بعد ماشي محلية؟</p>
+  <button class="opt" data-correct>التنصيب ديالو محلي ممكن يعاوق</button>
+  <button class="opt">Express ماكيقراش local database أبدا</button>
+  <button class="opt">باش React يتصل بـ Mongo</button>
+  <button class="opt">الـ remote MongoDB مجاني 100%</button>
+  <p class="explain">الكورس قال باللي التنصيب ديال MongoDB محلي ممكن يوقع فيه مشاكل ويكون "a real pain"، وهادشي علاش استعملنا instance مستضافة عند طرف ثالث.<span class="cite"><a href="#n5">[5]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> مراجعة: شنو كيدير <code>clientID</code> فـ Google strategy؟</p>
+  <button class="opt">كيسجّل redirect URI عند Google servers</button>
+  <button class="opt" data-correct>كيعرّف التطبيق ديالنا عند Google servers</button>
+  <button class="opt">كيخلي الـ user مسجل بلا cookie</button>
+  <button class="opt">كينصب passport فـ node_modules فهاد المشروع</button>
+  <p class="explain">رجع للدرس 3: الـ clientID هو <strong>public token</strong> غير كيعرّف التطبيق ديالنا عند خدمة Google OAuth.<span class="cite"><a href="#n11">[11]</a></span></p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0002-auth-mongoose-flow.html">المرجع 0002</a><span>·</span>
+    <a href="0003-google-oauth-passport.html">الدرس السابق</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>الـ session ديال authentication: passport callbacks + cookies + logout</strong> (القسم 04).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>04. Adding MongoDB/02. The Theory of Authentication.vtt</code> (02:24–03:47) — HTTP is stateless, no shared info between two separate requests</li>
+  <li id="n2"><code>04. Adding MongoDB/03. Signing In Users with OAuth.vtt</code> (00:51–01:17) — explain email/password first, then pivot to the OAuth flow</li>
+  <li id="n3"><code>04. Adding MongoDB/01. Server Structure Refactor.vtt</code> (00:19–00:51) — no great convention in Express, config folder for API keys</li>
+  <li id="n4"><code>04. Adding MongoDB/04. Introduction to MongoDB.vtt</code> (00:17–00:28) — create a new user record every time someone signs in with OAuth</li>
+  <li id="n5"><code>04. Adding MongoDB/05. Remote vs Local MongoDB Instances.vtt</code> (00:11–01:09) — local copy vs remotely hosted instance, course uses a third-party hosted copy</li>
+  <li id="n6"><code>04. Adding MongoDB/07. Connecting Mongoose to Mongo.vtt</code> (00:04–00:57) — npm install --save mongoose, require it in index.js right under the Express require</li>
+  <li id="n7"><code>04. Adding MongoDB/09. Mongoose Model Classes.vtt</code> (00:05–01:24) — model class = collection of records, models folder + user.js, pull schema off mongoose</li>
+  <li id="n8"><code>04. Adding MongoDB/10. Saving Model Instances.vtt</code> (00:19–00:55) — Google strategy callback args: access token, refresh token, profile with unique Google user ID</li>
+  <li id="n9"><code>04. Adding MongoDB/12. Mongoose Queries.vtt</code> (00:09–01:18) — duplicate records with identical Google IDs, check for the profile ID before creating</li>
+  <li id="n10"><code>04. Adding MongoDB/13. Passport Callbacks.vtt</code> (00:15–01:06) — async query returns a promise, existingUser is a mongoose instance or null, call done()</li>
+  <li id="n11"><code>03. Authentication with Google OAuth/07. Securing API Keys.vtt</code> (00:33–00:52) — client ID is a public token that identifies our application to Google servers</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

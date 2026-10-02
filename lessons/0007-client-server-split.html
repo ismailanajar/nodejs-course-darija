@@ -24,6 +24,12 @@
 <h2>1 · الفصل: <code>client/</code> جوه dir ديال السيرفر</h2>
 <p>الـ <code>create-react-app</code> صاوب لينا مجلد جديد اسمو <strong><code>client/</code></strong> داخل dir ديال المشروع، وهو اللي كيسكن فيه كامل الـ React side ديال التطبيق.<span class="cite"><a href="#n1">[1]</a></span> المهم تعرف: <strong>الـ React project عندو server خاص بيه</strong> — كيتفتح بـ <code>npm start</code> من داخل <code>client/</code>، وكيرفع التطبيق على <code>localhost:3000</code>.<span class="cite"><a href="#n1">[1]</a></span></p>
 <p>هادي هي النقطة اللي كتقلب كلشي: من دابا عندنا <strong>جوج servers فـ development</strong> — الـ React server (اللي كي bundle الـ components بـ Webpack و Babel ويخرج ملف <code>bundle.js</code> للـ browser)، و الـ Express server (اللي كيخرج غير JSON و data).<span class="cite"><a href="#n1">[1]</a></span> علاش نستحملو جوج؟ حيت <strong>Create React App هو أحسن طريق</strong> باش نبداو: كامل الـ config ديال Webpack و Babel و loaders كيجي مصاوب من التّلا، وتوفير هادا يستاهل الـ extra setup ديال الفصل.<span class="cite"><a href="#n1">[1]</a></span></p>
+<div class="stack">
+  <div class="stack-layer"><b>Browser</b><span>كيرجّع domain اللي راه فيه — <code>localhost:3000</code> — على كل relative link<span class="cite"><a href="#n4">[4]</a></span></span></div>
+  <div class="stack-layer"><b>React server</b><span><code>localhost:3000</code> — CRA، Webpack، Babel، و الـ proxy اللي كيحوّل الـ requests اللي ما عرفش</span></div>
+  <div class="stack-layer"><b>Express</b><span><code>localhost:5000</code> — <code>/api</code> و <code>/auth/google</code></span></div>
+  <div class="stack-layer"><b>MongoDB</b><span>الـ data ديال users والـ surveys</span></div>
+</div>
 <p>وإلا كنتي كتمشي بالطريقة الساهلة: عندك zip ديال starter boilerplate — نزّلو و extraiه فـ <strong>dir ديال السيرفر الموجود</strong>، والنتيجة خاصها تكون:</p>
 <pre dir="ltr"><code>server/
   client/
@@ -74,6 +80,10 @@ module.exports = function (app) {
 
 # 3) npm run dev من جديد (أي تعديل على setupProxy.js كيجبّر restart)</code></pre>
 <p>تنبيهات ديال الفرق: <strong>ما تحطش</strong> الـ proxy config فـ <code>package.json</code> (غادي يرمي ليك <code>"proxy" in package.json must be a string</code>)، و<strong>ما تزيدش</strong> <code>changeOrigin: true</code> (غادي يكسّر الـ redirects كاملين).<span class="cite"><a href="#n6">[6]</a></span></p>
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  شعلت الـ app ولقّيت الـ error <code>"proxy" in package.json must be a string</code> — يعني حطيتي proxy field داخل <code>package.json</code> ديال الـ client. الحل: حيدو من تما، وثبّت <code>http-proxy-middleware@2</code> وحط القاعدة فـ <code>client/src/setupProxy.js</code> بـ <code>target: "http://localhost:5000"</code>، ومن بعد عاود <code>npm run dev</code> حيت كل تعديل على الملف كيجبّر restart.<span class="cite"><a href="#n6">[6]</a></span>
+</div>
 <p>وآخر شي: فـ <strong>production</strong> ما كاين لا الـ Create React App server لا proxy — الـ browser كي prepend domain ديالك على الـ links و الـ requests كيمشي مباشرة للـ Express API، وهكذا الـ flow كيولي predictable بزاف.<span class="cite"><a href="#n7">[7]</a></span></p>
 
 <h2>5 · ممارسة retrieval</h2>

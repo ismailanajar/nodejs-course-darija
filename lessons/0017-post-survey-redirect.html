@@ -18,13 +18,13 @@
 
 <div class="callout">
   <span class="label">Win ديال هاد الدرس</span>
-  غادي تقفل الـ loop كامل ديال أي form عندك: <strong>form values &rarr; POST للـ API &rarr; update ديال store &rarr; redirect</strong>. هادي هي القطعة اللي كتقلب واجدة ديال UI لـ feature حقيقية يقدر الـ client ديالك يستعملها.
+  غادي تقفل الـ loop كامل ديال أي form عندك: <strong>form values → POST للـ API → update ديال store → redirect</strong>. هادي هي القطعة اللي كتقلب واجدة ديال UI لـ feature حقيقية يقدر الـ client ديالك يستعملها.
 </div>
 
 <h2>1 · scaffold ديال الـ action creator</h2>
 <p>قبل ما نكتبو المنطق، الكورس كيعاود ليك الثلاثة ديال الـ tasks اللي باقيين: شنو كيوقع ملي يclicki على <strong>send survey</strong>، كيفاش نرجّعو الـ user للـ dashboard، وكيفاش نرميو الـ values اللي بقاو مخزنين بعد ما يclicki <strong>cancel</strong>.<span class="cite"><a href="#n1">[1]</a></span></p>
 <p>أي تبديل فـ بيانات التطبيق = <strong>action creator</strong>، ولهذا كنصاوبو <code>submitSurvey</code> فـ <code>src/actions/index.js</code>: كتاخد <code>values</code> كـ argument، وترجع object فيه <code>type</code> (مثلا <code>SUBMIT_SURVEY</code>) — غير باش الـ Redux ما يطيحش، بلا منطق آلي بعدا.<span class="cite"><a href="#n1">[1]</a></span></p>
-<p>الربط: <code>import * as actions</code> ودخّلو كـ الـ argument الثاني ديال <code>connect</code>، ومن بعد كتستقبلو كـ prop فـ <code>SurveyFormReview</code>. الـ زر كيعطيه <code>onClick</code> — وهنا الوثيقة ديال الـ traps: إلا كتبيتي <code>onClick={submitSurvey(formValues)}</code> غادي تنادى <strong>بلا ما تclicki</strong> (كتبان بحال نداء فـ render)، ولهذا كتغلّفها بـ arrow function.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>الربط ساهل: كدير <code>import * as actions</code> وكتعطيهم لـ <code>connect</code> كـ argument ثاني، وهكذا <code>SurveyFormReview</code> كتولي عندها <code>submitSurvey</code> كـ prop. وملي كتربطها بزر الـ send خاصك تغلّفها بـ arrow function، حيت إلا كتبتي <code>onClick={submitSurvey(formValues)}</code> راها غادي تخدم <strong>ملي كيبان الزر</strong> ماشي ملي كتclicki عليه. علاش هادي مهمة ملي تخدم لـclient: أي زر ديال الإرسال عند الـ client خاصو يخدم غير ملي الـ user كيclicki، ماشي قبل.<span class="cite"><a href="#n1">[1]</a></span></p>
 <pre dir="ltr"><code>onClick={() =&gt; submitSurvey(formValues, history)}</code></pre>
 <div class="callout pitfall">
   <span class="label">نتيجة كتجي غلط</span>
@@ -34,20 +34,16 @@
 <h2>2 · تصفير القيم: قطع ذكي</h2>
 <p>الـ bug: ملي الـ user يclicki <strong>cancel</strong> ومن بعد يرجع للفورم، الـ inputs معمرين بحال والو. السبب: حططينا <code>destroyOnUnmount: false</code> على <code>SurveyForm</code>. ولكن حلها ماشي بـ handler على زر الـ cancel — حيت الـ user يقدر يخرج من الفورم بأي link آخر فالـ header.<span class="cite"><a href="#n2">[2]</a></span></p>
 <p>الحيلة: كنربطو <code>reduxForm({ form: 'surveyForm' })</code> بـ <strong><code>SurveyNew</code></strong> هو (نفس الـ اسم ديال form). النتيجة: ملي كتبدل بين <code>SurveyForm</code> و <code>SurveyFormReview</code> ما كاين unmount ديال <code>SurveyNew</code> → القيم كيبقاو؛ وملي الـ user يخرج من <code>SurveyNew</code> كامل (cancel ولا أي route آخر)، هو اللي كيunmount → <strong>الـ default behavior ديال Redux Form كيرمي القيم كاملة</strong>.<span class="cite"><a href="#n2">[2]</a></span></p>
-<div class="flow">
-  <div class="flow-row">
-    <div class="flow-node">SurveyNew<small>reduxForm('surveyForm')</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">SurveyForm<small>destroyOnUnmount: false</small></div>
-    <div class="flow-arrow">&harr;</div>
-    <div class="flow-node">SurveyFormReview<small>قيمنا فـ store</small></div>
-  </div>
+<div class="compare">
+  <div class="col-good"><span class="tag">باقي داخل SurveyNew</span>التبديل بين <code>SurveyForm</code> و <code>SurveyFormReview</code> ما كيديرش unmount ديال <code>SurveyNew</code> اللي عليه <code>reduxForm('surveyForm')</code> → القيم كيبقاو فالـ store.</div>
+  <div class="col-bad"><span class="tag">خرج من SurveyNew</span>الـ user مشا لأي route آخر (زر cancel ولا link فالـ header) → <code>SurveyNew</code> كيدير unmount → الـ default behavior ديال Redux Form كيرمي القيم كاملة.</div>
 </div>
+<p class="mono">كيفاش تقرا هاد المخطط: قارن الحالة بجوج — داخل SurveyNew القيم كيبقاو، خارج SurveyNew القيم كيتمسحاو.</p>
 
 <h2>3 · مطابقة الأسماء: من <code>emails</code> حتى <code>recipients</code></h2>
 <p>قبل الـ POST، فاتورة صغيرة: الـ backend ديالنا (اللي كتبناه من قبل) كيتسنا <code>req.body.recipients</code>، أما الفورم فكايمتّل <code>emails</code> — تناقض بين الطرفين. التصليح ساهل: تبدل <code>name</code> فـ file ديال الـ fields، ومن بعد <code>errors.recipients</code> و <code>values.recipients</code> فـ الـ <code>validate</code> function.<span class="cite"><a href="#n3">[3]</a></span></p>
 
-<h2>4 · POST &rarr; dispatch &rarr; redirect</h2>
+<h2>4 · POST → dispatch → redirect</h2>
 <p>الآن المنطق حقيقي فـ <code>submitSurvey</code>، نفس الطريقة ديال <code>handleToken</code>:</p>
 <pre dir="ltr"><code>export const submitSurvey = (values, history) =&gt; async dispatch =&gt; {
   const res = await axios.post('/api/surveys', values);
@@ -55,13 +51,14 @@
   history.push('/surveys');
 };</code></pre>
 <ol class="seq">
-  <li><span class="from">SurveyFormReview</span> <span class="arrow">→</span> <span class="to">submitSurvey</span> <span class="what">formValues جايين من الـ form</span></li>
+  <li><span class="from">SurveyFormReview</span> <span class="arrow">→</span> <span class="to">submitSurvey</span> <span class="what">submitSurvey(formValues, history) من الـ props</span></li>
   <li><span class="from">submitSurvey</span> <span class="arrow">→</span> <span class="to">axios</span> <span class="what">POST /api/surveys بـ values</span></li>
-  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">MongoDB</span> <span class="what">خصم credit و تسجيل survey</span></li>
-  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">submitSurvey</span> <span class="what">res.data = user model مجدّد</span></li>
+  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">MongoDB</span> <span class="what">handler ديال POST /api/surveys: خصم credit و save ديال survey</span></li>
+  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">submitSurvey</span> <span class="what">res.data = user مجدّد مورا خصم credit</span></li>
   <li><span class="from">submitSurvey</span> <span class="arrow">→</span> <span class="to">Redux store</span> <span class="what">dispatch fetch_user → header كيجدّد الرصيد</span></li>
   <li><span class="from">submitSurvey</span> <span class="arrow">→</span> <span class="to">react-router</span> <span class="what">history.push('/surveys')</span></li>
 </ol>
+<p class="mono">كيفاش تقرا هاد المخطط: تبع الأرقام من 1 حتى 6 — كل سطر رسالة من جهة لجهة مع الـ artifact اللي مشات فيها.</p>
 <ul>
   <li>الـ <code>POST /api/surveys</code> كيرجع <strong>الـ user model المجدّد</strong> (اللي خصّم من الـ credits)، ولهذا كنـ <code>dispatch</code> بو <code>fetch_user</code> — وهكذا الـ header كيupdate بـ الرصيد الجديد بلا refresh.<span class="cite"><a href="#n4">[4]</a></span></li>
   <li>الـ اختبار فالكورس: POST كيرجع <code>200</code>، الـ credits نقصو من 7 لـ 6، والـ email وصلات لـ inbox ديال الاختبار.<span class="cite"><a href="#n4">[4]</a></span></li>

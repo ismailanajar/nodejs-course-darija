@@ -51,10 +51,24 @@ if (process.env.NODE_ENV === 'production') {
 }</code></pre>
 <p>أما <code>prod.js</code> كيexport <strong>نفس property names</strong> بالضبط (باش أي ملف ديال المشروع يقدر يستعملهم بلا تغيير)، ولكن القيم كيجيو من environment variables.<span class="cite"><a href="#n4">[4]</a></span> والـ convention: environment variables بالحروف الكبيرة والتشرطة السفلية — <code>GOOGLE_CLIENT_ID</code>، <code>GOOGLE_CLIENT_SECRET</code>، <code>MONGO_URI</code>، <code>COOKIE_KEY</code>.<span class="cite"><a href="#n4">[4]</a></span></p>
 <p>وأخيرا تقسيم الـ git: <code>dev.js</code> كيتضاف لـ <code>.gitignore</code> (ما كيتصدّش)، أما <code>keys.js</code> و <code>prod.js</code> <strong>كيت-commitو</strong> — وإلا ما commitinash <code>prod.js</code>، الـ Heroku server غادي يقلب على الملف ملي يخدم و ما يلقاش ويرمي error ضخم.<span class="cite"><a href="#n4">[4]</a></span></p>
+<div class="compare">
+  <div class="col-good">
+    <span class="tag">كيت-commit للـ repo</span>
+    <code>keys.js</code> + <code>prod.js</code> — غير logic و قيم جايين من <code>process.env</code>، حتى مفتاح واحد ما كاين فهاد الملفين.<span class="cite"><a href="#n4">[4]</a></span>
+  </div>
+  <div class="col-bad">
+    <span class="tag">ما كيتصدّش أبدا</span>
+    <code>dev.js</code> — فيه raw keys حقيقية ديال dev، وزيدو فـ <code>.gitignore</code> باش ما يوصلش لـ repo.
+  </div>
+</div>
 
 <h2>4 · environment variables فوق المنصة + قاعدة الـ HTTPS</h2>
 <p>فين كيتصايبو القيم ديال <code>process.env</code>؟ فوق المنصة ديال deployment. فـ <strong>Heroku</strong>: dashboard ديال الـ app &rarr; tab ديال <strong>Settings</strong> &rarr; config variables (key/value pairs).<span class="cite"><a href="#n5">[5]</a></span> وفـ <strong>Render</strong> (بديل Heroku بلا free tier): sidebar &rarr; <strong>Environment</strong> &rarr; زر <strong>Add Environment Variable</strong>، وتزيد pair pair: <code>COOKIE_KEY</code> (أي string عشوائي)، <code>GOOGLE_CLIENT_ID</code> و <code>GOOGLE_CLIENT_SECRET</code> من Google Project Dashboard &rarr; APIs and Services &rarr; Credentials &rarr; OAuth 2.0 Client ID، و <code>MONGO_URI</code>.<span class="cite"><a href="#n6">[6]</a></span></p>
 <p>وآخر مصيبة كتجي بعد الـ deploy: <strong>redirect_uri mismatch</strong>. Google كيشوف <code>http://...herokuapp.com</code> بينما نحنا سجلنا <code>https://...</code> فـ authorized redirect URI — يعني شي حاجة كترجّع الـ flow لـ HTTP بدل HTTPS.<span class="cite"><a href="#n7">[7]</a></span> القاعدة اللي خاصك تحطها فراسك: <strong>كلشي مربوط بـ auth خاصو يكون HTTPS</strong> حيت كيتصرف مع بيانات حساسة.<span class="cite"><a href="#n7">[7]</a></span></p>
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  من بعد الـ deploy، Google كيرمي ليك صفحة <code>redirect_uri mismatch</code> — حيت الـ request رجع بـ <code>http://</code> بينما Authorized redirect URI مسجل بـ <code>https://</code>. الحل: حل Google Console وتأكد بلي الـ redirect URI هو نفس domain بالضبط اللي خذتيه من <code>heroku open</code>، بـ <code>https</code> وكامل <code>/auth/google/callback</code>.<span class="cite"><a href="#n7">[7]</a></span>
+</div>
 
 <h2>5 · ممارسة retrieval</h2>
 <p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 3 — Google OAuth و Passport JS: كيفاش كيمشي الـ flow</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 3 · Course sections 03</p>
+  <h1>Google OAuth و Passport JS: كيفاش كيمشي الـ flow</h1>
+  <p class="dek">الـ login button الحمراء ديال "Sign in with Google" عندها وراءها مشيحة رايحة جاية بين browser وسيرفرنا و Google — وهنا غادي نفكّكو خطوة بخطوة.</p>
+  <p class="meta">~10 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تقدر تشرح لـclient كامل الـ OAuth flow: شكون بعت شكون، علاش خاص redirect URI مسجل، وفين كيجي الـ access token — وغادي تصاوب <code>/auth/google</code> ديالك بـ Passport بلا ما تتوهّن.
+</div>
+
+<h2>1 · البداية: أول feature</h2>
+<p>الكورس قال: أول حاجة غادي نبنيوها فهاد التطبيق هي <strong>الـ sign up بـ Google OAuth</strong> (خطوة 1 ديال الـ user flow اللي شفناها ف الدرس 1.1)، وعلاش هو التخصام ديال domain مخصص غادي نهضرو عليه من بعد.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>الـ diagram ديال الـ flow كيتقسم لـ <strong>ثلاث columns: Client، Server، Google</strong> — كل خطوة فيها كتبدا من شي column وتمشي لل الأخرى.<span class="cite"><a href="#n2">[2]</a></span></p>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">Client<small>browser ديال user</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">Server<small>سيرفرنا Express</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">Google<small>OAuth service</small></div>
+  </div>
+</div>
+
+<h2>2 · شنو كيدير Passport JS؟</h2>
+<p><strong>Passport</strong> = helper library كتاخد علينا خطوات معينة من الـ flow (اللي فالـ diagram كيتعرضو بـ yellow box) بلا ما نكتبوا boilerplate بزاف.<span class="cite"><a href="#n3">[3]</a></span> بصح الكورس نبّه على <strong>مشتين كبار</strong> حول Passport: خاصك تعرف شنو بالضبط كيدير، وإلا ما غاديش تفهم كيفاش كيمشي.<span class="cite"><a href="#n3">[3]</a></span></p>
+<p>التنصيب:</p>
+<pre><code>npm install --save passport
+npm install --save passport-google-oauth20</code></pre>
+<p class="mono" style="font-size:0.8rem;color:var(--ink-faint)">انتبه للـ <strong>20</strong> فآخر اسم الـ strategy — هادي النسخة ديالها.<span class="cite"><a href="#n4">[4]</a></span></p>
+
+<h2>3 · options ديال الـ Google strategy</h2>
+<ul>
+  <li>قبل ما تستعمل الـ strategy، خاصك <strong>ثنين ديال options</strong>: <code>clientID</code> و <code>clientSecret</code>، والجوج كيجيو من خدمة Google OAuth.<span class="cite"><a href="#n5">[5]</a></span></li>
+  <li><code>clientID</code> = <strong>public token</strong> — حتى شي مشكل إلا شي حد لوّلو؛ غير كيعرّف التطبيق عند Google.<span class="cite"><a href="#n6">[6]</a></span> أما <code>clientSecret</code> فخاصو يبقى مخفي كامل.<span class="cite"><a href="#n6">[6]</a></span></li>
+  <li>الكورس كيحطهم فملف <code>config/keys.js</code> وكيزاد <strong>Prefix "Google"</strong> قدام كل key باش من بعد تزيد Facebook ولا LinkedIn وتبقى فاهم شنو شنو.<span class="cite"><a href="#n7">[7]</a></span></li>
+  <li>تنبيه مهم بزاف: الـ key خاصها <strong>capital D</strong> (<code>clientId</code>) — الكورس طلب triple check حيت typo صغير كيسبب أخطاء صعيبة.<span class="cite"><a href="#n7">[7]</a></span></li>
+  <li>عنّا <code>callbackURL</code> options: هادي هي الرابط اللي Google غادي يرجّع بيه الـ user من بعد ما يعطي الإذن.<span class="cite"><a href="#n7">[7]</a></span></li>
+</ul>
+
+<h2>4 · كيفاش كيتجرّب الـ flow</h2>
+<p>الـ strategy كتاخد: <strong>أول argument</strong> = object ديال options، و <strong>الثاني</strong> = arrow function callback (غادي نهضرو عليها بالتفصيل ف الدرس الجاي).<span class="cite"><a href="#n8">[8]</a></span></p>
+<ol>
+  <li>الـ user كيحل <code>/auth/google</code> &rarr; السيرفر كيبعثو لـ Google.<span class="cite"><a href="#n8">[8]</a></span></li>
+  <li>الـ user كيختار حسابو ويسمح للتطبيق &rarr; Google كيرجّعو لـ <code>localhost:5000/auth/google/callback</code>.<span class="cite"><a href="#n8">[8]</a></span></li>
+  <li>أول مرة: غادي تشوف <strong>"Redirect URI Mismatch"</strong> — خاصك تسجّل الـ redirect URI عند Google (نفس الرابط بالضبط).<span class="cite"><a href="#n9">[9]</a></span></li>
+  <li>من بعد التسجيل: كتختار الحساب وتولّي <strong>"cannot get /auth/google/callback"</strong> — علاش؟ حيت مازال ما صاوبيناش الـ route handler ديال الـ callback.<span class="cite"><a href="#n10">[10]</a></span></li>
+  <li>الـ strategy كيشوف <strong>code</strong> اللي فالـ URL وكيدوز <strong>request تاني</strong> لـ Google باش يبدلو بـ profile ديال الـ user، ومن بعد كتنادي الـ callback وكيتبان <strong>access token</strong> فـ terminal.<span class="cite"><a href="#n11">[11]</a></span></li>
+</ol>
+<p>وخدمة صغيرة: الكورس نصب <strong>nodemon</strong> باش السيرفر يعاود يتشغل وحدي من كل تبديل ف الكود — بلا ما تدير Ctrl+C و<code>node index.js</code> كل مرة.<span class="cite"><a href="#n12">[12]</a></span></p>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تحل شي حاجة. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> شنو كيدير Passport JS فهاد الـ flow؟</p>
+  <button class="opt" data-correct>كيأوتوماتي الأشواط اللي فالـ yellow box</button>
+  <button class="opt">كيخلي Google يخدمو بلا client secret</button>
+  <button class="opt">كيعطي client ID لكل user جديد</button>
+  <button class="opt">كينصب MongoDB فـ server ديالنا كلشي</button>
+  <p class="explain">الـ Passport هو اللي كياخد علينا الخطوات اللي فالـ yellow box ديال الـ diagram بلا boilerplate بزاف.<span class="cite"><a href="#n3">[3]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> علاش خاص الـ redirect URI يكون مسجل عند Google؟</p>
+  <button class="opt">باش الـ client secret يبقى مخفي</button>
+  <button class="opt">باش npm يقدر ينصبو Express ديالنا</button>
+  <button class="opt" data-correct>حتى مايرجعش user لرابط ماشي مسجل</button>
+  <button class="opt">باش الكود يوصل للـ browser بسرعة</button>
+  <p class="explain">إلا ما سجلتيش نفس الرابط، Google كيرجعك بـ <strong>Redirect URI Mismatch</strong> — خاص الـ callback URL يكون مطابق تماماً.<span class="cite"><a href="#n9">[9]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> منين كيجي الـ client ID و client secret؟</p>
+  <button class="opt">من MongoDB Atlas مباشرة لمشروعنا هنا</button>
+  <button class="opt">من Express middleware ديالنا فـ index</button>
+  <button class="opt">من Google Cloud billing كل شهر</button>
+  <button class="opt" data-correct>من خدمة Google OAuth نفسها مباشرة</button>
+  <p class="explain">الجوج كيتسلّمو ليك من خدمة Google OAuth نيشان: الـ clientID كيعرّف التطبيق، والـ clientSecret خاصو يبقى مخفي.<span class="cite"><a href="#n5">[5]</a></span><span class="cite"><a href="#n6">[6]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> مراجعة: شنو كيصاوب <code>npm init</code>؟</p>
+  <button class="opt">كاينصب express فـ node_modules من بعد</button>
+  <button class="opt" data-correct>كايصاوب package.json بحال hub للمشروع كاع</button>
+  <button class="opt">كايرجع HTML ديال الـ React app</button>
+  <button class="opt">كايقتل الـ server كاع مرة منين</button>
+  <p class="explain">رجع للدرس 2: الـ <code>npm init</code> غير كيصاوب <code>package.json</code>، اللي هو الـ central hub ديال dependencies ديال المشروع.<span class="cite"><a href="#n13">[13]</a></span></p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0002-auth-mongoose-flow.html">المرجع 0002</a><span>·</span>
+    <a href="0002-server-bootstrap.html">الدرس السابق</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>MongoDB و Mongoose: connection + models + queries</strong> (القسم 04).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>03. Authentication with Google OAuth/01. Intro to Google OAuth.vtt</code> (00:18–00:57) — custom domain later, step one = user signs up via Google OAuth, first feature</li>
+  <li id="n2"><code>03. Authentication with Google OAuth/02. The OAuth Flow.vtt</code> (00:48–01:06) — three columns: Client, Server, Google</li>
+  <li id="n3"><code>03. Authentication with Google OAuth/03. Overview of Passport JS.vtt</code> (00:11–00:58) — Passport automates the yellow box, two big issues around it</li>
+  <li id="n4"><code>03. Authentication with Google OAuth/04. Passport Setup.vtt</code> (00:41–01:07) — npm install --save passport, passport-google-oauth20 (note the 20)</li>
+  <li id="n5"><code>03. Authentication with Google OAuth/05. The Google OAuth API.vtt</code> (00:25–01:00) — strategy needs clientID + client secret, /auth/google forwards user to Google for profile permission</li>
+  <li id="n6"><code>03. Authentication with Google OAuth/07. Securing API Keys.vtt</code> (00:33–01:00) — client ID is a public token, client secret must stay secret</li>
+  <li id="n7"><code>03. Authentication with Google OAuth/08. Google Strategy Options.vtt</code> (00:00–01:02, 05:39–05:53) — Google prefix for multiple providers, capital D in clientId, callbackURL option</li>
+  <li id="n8"><code>03. Authentication with Google OAuth/09. Testing OAuth.vtt</code> (00:00–00:58) — options object + arrow callback, /auth/google &rarr; Google &rarr; localhost:5000/auth/google/callback</li>
+  <li id="n9"><code>03. Authentication with Google OAuth/10. Authorized Redirect URI's.vtt</code> (00:00–00:43) — Redirect URI Mismatch error, URL base + query string dissected</li>
+  <li id="n10"><code>03. Authentication with Google OAuth/11. OAuth Callbacks.vtt</code> (00:46–00:52) — after choosing an account: cannot get /auth/google/callback</li>
+  <li id="n11"><code>03. Authentication with Google OAuth/12. Access and Refresh Tokens.vtt</code> (00:04–00:51) — strategy sees the code, does a second request to Google, access token logged</li>
+  <li id="n12"><code>03. Authentication with Google OAuth/13. Nodemon Setup.vtt</code> (00:12–00:52) — Ctrl+C + node index.js restarts, nodemon auto-restarts the server</li>
+  <li id="n13"><code>02. Server Side Architecture/02. Relationship Between Node and Express.vtt</code> (01:08–01:22) — npm init generates package.json, the project's central hub</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

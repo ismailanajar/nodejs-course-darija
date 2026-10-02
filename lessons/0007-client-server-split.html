@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 7 — الـ Client: separate server و CRA proxy</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 7 · Course sections 06</p>
+  <h1>الـ Client: separate server و CRA proxy</h1>
+  <p class="dek">دابا عندنا Express و MongoDB، وحان وقت الـ React: نصاوبو <code>client/</code> بوحدها، نشغلو جوج خوادم بأمر واحد، ونحلو مشكل الـ relative links بـ proxy.</p>
+  <p class="meta">~12 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تعرف تفصل الـ client على الـ server فنفس المشروع: <strong><code>client/</code> جوه dir ديال السيرفر</strong> بـ <code>package.json</code> خاصو، أمر واحد (<code>npm run dev</code>) كيشغّل جوج، و <strong>proxy</strong> اللي كيحوّل الـ API requests للسيرفر الصحيح — ف dev، و كيفاش كيتبدّل الوضع فـ production.
+</div>
+
+<h2>1 · الفصل: <code>client/</code> جوه dir ديال السيرفر</h2>
+<p>الـ <code>create-react-app</code> صاوب لينا مجلد جديد اسمو <strong><code>client/</code></strong> داخل dir ديال المشروع، وهو اللي كيسكن فيه كامل الـ React side ديال التطبيق.<span class="cite"><a href="#n1">[1]</a></span> المهم تعرف: <strong>الـ React project عندو server خاص بيه</strong> — كيتفتح بـ <code>npm start</code> من داخل <code>client/</code>، وكيرفع التطبيق على <code>localhost:3000</code>.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>هادي هي النقطة اللي كتقلب كلشي: من دابا عندنا <strong>جوج servers فـ development</strong> — الـ React server (اللي كي bundle الـ components بـ Webpack و Babel ويخرج ملف <code>bundle.js</code> للـ browser)، و الـ Express server (اللي كيخرج غير JSON و data).<span class="cite"><a href="#n1">[1]</a></span> علاش نستحملو جوج؟ حيت <strong>Create React App هو أحسن طريق</strong> باش نبداو: كامل الـ config ديال Webpack و Babel و loaders كيجي مصاوب من التّلا، وتوفير هادا يستاهل الـ extra setup ديال الفصل.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>وإلا كنتي كتمشي بالطريقة الساهلة: عندك zip ديال starter boilerplate — نزّلو و extraiه فـ <strong>dir ديال السيرفر الموجود</strong>، والنتيجة خاصها تكون:</p>
+<pre dir="ltr"><code>server/
+  client/
+
+cd client
+npm install</code></pre>
+<p>و ملي تكمّل، ماعنكش خاطر تزيد dependencies ديال client من بعد — الـ boilerplate قدّامك.<span class="cite"><a href="#n2">[2]</a></span></p>
+
+<h2>2 · جوج terminals ولا script وحدة</h2>
+<p>باش تخلّص الـ client والـ server مع بعضياتهم: <strong>الطريقة القاسية</strong> = terminal ثانية داخل <code>client/</code> بـ <code>npm start</code> وterminal الأولى داخل السيرفر بـ <code>npm run dev</code> — خدامة، ولكن باغيين أحسن.<span class="cite"><a href="#n3">[3]</a></span></p>
+<p><strong>الطريقة الساهلة</strong> = package ديال <code>concurrently</code> كيشغّل جوج بأمر واحد. وقبل من نزيدو، لاحظ ميزة كبيرة: <strong>دابا عندنا <code>package.json</code> جوج</strong> — واحد فالـ server (فيه deps ديال backend) و واحدداخل <code>client/</code> (فيه deps ديال React) — وخاصك تعرف دايما فين راك كتكتب.<span class="cite"><a href="#n3">[3]</a></span></p>
+<pre dir="ltr"><code>npm install --save concurrently   # من داخل dir ديال السيرفر
+
+"client": "npm run start --prefix client",
+"server": "npm run server",        # الـ script القديم ديال dev تبدّل
+"dev":   "concurrently \"npm run server\" \"npm run client\""
+
+npm run dev                        # جوج فنفس terminal</code></pre>
+<p>الـ <code>--prefix client</code> كيقول له "مشي داخل <code>client/</code> ودير <code>npm run start</code> من تما"، و الـ backslashes غير باش ن escape الـ double quotes اللي خاصها تكون محيطة بالـ script فـ JSON.<span class="cite"><a href="#n3">[3]</a></span></p>
+
+<h2>3 · الـ stumbling block ديال relative links</h2>
+<p>السيرفر خدامين مع بعضياتهم — حتى مشاو للـ OAuth. الـ مشكل: أي <strong>relative link</strong> (بحال <code>/auth/google</code>) الـ browser كي <strong>prepend</strong> عليه domain اللي راه فيه دابا، وهو <code>localhost:3000</code> (الـ React server) — ماشي <code>localhost:5000</code> (الـ Express).<span class="cite"><a href="#n4">[4]</a></span> والنتيجة: Google كيشوف بلي باغيين نرجّعو الـ user لـ <code>localhost:3000/auth/google/callback</code> وهو ما مسجلش عندو — <strong>redirect_uri mismatch</strong>.<span class="cite"><a href="#n4">[4]</a></span></p>
+<p>الحل ديال الكورس هو <strong>proxy</strong>: قاعدة كتقول للـ React server "أي طلب ما عرفتوش، حوّلو للـ backend على <code>localhost:5000</code>" — وهكذا <code>/auth/google</code> كتوصل للـ Express وكيمشي معاه الطريق الصحيح.<span class="cite"><a href="#n5">[5]</a></span></p>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">browser<small>localhost:3000</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">React dev server<small>غير ما تعرفش &rarr; proxy</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">Express<small>localhost:5000</small></div>
+  </div>
+</div>
+<p>و زيادة على ذلك: خاصك تزيد <strong>redirect URI ديال dev</strong> — <code>http://localhost:3000/auth/google/callback</code> — فـ authorized redirect URIs ديال Google console. الكورس كيأكّد: <strong>غير فـ development</strong> بغيتي نرتاحو شوية، أما الإعداد ديال production كيبقى super secure وما يتبدلش.<span class="cite"><a href="#n5">[5]</a></span></p>
+
+<h2>4 · CRA تبدّل: <code>setupProxy.js</code></h2>
+<p>الفيديوهات كيتكلمو على <code>proxy</code> field داخل <code>package.json</code> ديال الـ client، ولكن <strong>CRA تبدّل الطريقة</strong> ومن بعد هاد الخطوة: دابا خاصك هاكا:<span class="cite"><a href="#n6">[6]</a></span></p>
+<pre dir="ltr"><code># 1) من داخل client/
+npm install http-proxy-middleware@2
+
+// 2) client/src/setupProxy.js — CRA كيقلّدو بالأسماء بلا ما ن importiوه
+const { createProxyMiddleware } = require("http-proxy-middleware");
+module.exports = function (app) {
+  app.use(
+    ["/api", "/auth/google"],
+    createProxyMiddleware({ target: "http://localhost:5000" })
+  );
+};
+
+# 3) npm run dev من جديد (أي تعديل على setupProxy.js كيجبّر restart)</code></pre>
+<p>تنبيهات ديال الفرق: <strong>ما تحطش</strong> الـ proxy config فـ <code>package.json</code> (غادي يرمي ليك <code>"proxy" in package.json must be a string</code>)، و<strong>ما تزيدش</strong> <code>changeOrigin: true</code> (غادي يكسّر الـ redirects كاملين).<span class="cite"><a href="#n6">[6]</a></span></p>
+<p>وآخر شي: فـ <strong>production</strong> ما كاين لا الـ Create React App server لا proxy — الـ browser كي prepend domain ديالك على الـ links و الـ requests كيمشي مباشرة للـ Express API، وهكذا الـ flow كيولي predictable بزاف.<span class="cite"><a href="#n7">[7]</a></span></p>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> ملّى كتكتب relative link بحال <code>/auth/google</code> من داخل React app ديال dev، فين كيمشي الـ request أصلا؟</p>
+  <button class="opt">كيمشي لـ MongoDB حيت فيها الداتا كاملة</button>
+  <button class="opt">كيمشي لـ localhost 5000 حيت هو اللّوول</button>
+  <button class="opt" data-correct>كيتزاد ليه localhost 3000 ديال React server</button>
+  <button class="opt">كيتزاد ليه domain كامل ديال Google Console</button>
+  <p class="explain">الـ browser كي prepend domain اللي راه فيه دابا على أي relative link — و فـ dev هادا هو <code>localhost:3000</code> (React server)، ماشي <code>localhost:5000</code> (Express)، وهادي هي علّاش كتبان الـ redirect_uri mismatch.<span class="cite"><a href="#n4">[4]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> شنو المهمة ديال الـ proxy (<code>setupProxy.js</code>) فـ development؟</p>
+  <button class="opt" data-correct>كيحوّل unknown requests للسيرفر Express على 5000</button>
+  <button class="opt">كيعاود يبني الـ React app كل مرة</button>
+  <button class="opt">كيخفي الـ API keys من الـ browser</button>
+  <button class="opt">كيصاوب database جديدة تماما لكل request جاي</button>
+  <p class="explain">قاعدة وحدة: أي path من <code>/api</code> و <code>/auth/google</code> كيتصاوب ليه target هو <code>http://localhost:5000</code> ومعاه نفس الـ path — الـ React server غير كيمرّر، والـ Express هو اللي كيخدم.<span class="cite"><a href="#n6">[6]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> فوق production (Heroku/Render)، شنو واقع مع الـ CRA server والـ proxy؟</p>
+  <button class="opt">كيبقاو جوج servers ونفس الـ proxy config</button>
+  <button class="opt">الـ Express كيتصاوب من جديد كل دقيقة</button>
+  <button class="opt">الـ MongoDB كيتولّى على serving الـ React</button>
+  <button class="opt" data-correct>ما كاين لا CRA server لا proxy</button>
+  <p class="explain">فـ production ما بقيناش الـ Create React App server لا الـ proxy — الـ browser كي prepend domain ديالك والطلب كيوصل مباشرة للـ Express API، وهكذا الـ OAuth flow كيمشي بشكل أكثر predictability.<span class="cite"><a href="#n7">[7]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> مراجعة: من الدرس 6، كيفاش الكود كيعرف واش راه خدام فـ production؟</p>
+  <button class="opt">من خلال npm scripts اللي كيتصاوبو</button>
+  <button class="opt" data-correct>من خلال NODE_ENV اللي كيساوي production</button>
+  <button class="opt">من خلال MongoDB URI اللي كيتبدل</button>
+  <button class="opt">من خلال cookie ديال الـ user</button>
+  <p class="explain">الجواب الصحيح هو <code>process.env.NODE_ENV === 'production'</code> — الكود كيفرق بين environment عن طريق هاد الـ variable، ماشي عن طريق scripts ولا URI. (قراية ديال retrieval: الـ variable هي هي اللي كتقرر يرجع <code>prod.js</code> ولا <code>dev.js</code>).</p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0003-client-redux-architecture.html">المرجع 0003</a><span>·</span>
+    <a href="0006-dev-vs-prod-env.html">الدرس السابق 6</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>8 — Redux و auth reducer: أول state ديالنا</strong> (القسم 07، عملي).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>06. Moving to the Client Side/02. A Separate Front End Server.vtt</code> — client folder houses the React side, it has its own built-in server started with npm start on localhost 3000, two servers in development, create-react-app gives pre-built Webpack and Babel config</li>
+  <li id="n2"><code>06. Moving to the Client Side/01. Required React App Boilerplate.html</code> — extract the starter zip into the existing server directory so the structure is server/client, then cd client and npm install, no further client dependencies needed</li>
+  <li id="n3"><code>06. Moving to the Client Side/03. Running the Client and Server.vtt</code> — hard way with a second terminal, easy way with concurrently, two package.json files, client script with --prefix client, renamed server script, npm run dev runs both</li>
+  <li id="n4"><code>06. Moving to the Client Side/05. Routing Stumbling Block.vtt</code> — a relative link gets localhost 3000 prepended instead of the backend at localhost 5000, producing another redirect_uri mismatch</li>
+  <li id="n5"><code>06. Moving to the Client Side/06. The Beauty of Create React App's Proxy.vtt</code> — browser prepends the current domain to relative links, the proxy rule forwards /auth/google to localhost 5000, add http://localhost:3000/auth/google/callback as an authorized redirect URI for development only</li>
+  <li id="n6"><code>06. Moving to the Client Side/04. Important Create React App Proxy Update.html</code> — install http-proxy-middleware@2, create client/src/setupProxy.js which CRA loads by name, proxy the /api and /auth/google routes to http://localhost:5000, no proxy key in package.json, no changeOrigin</li>
+  <li id="n7"><code>06. Moving to the Client Side/07. [Optional] Why This Architecture.vtt</code> — in production there is no create-react-app server and no proxy, the browser prepends the domain and requests go straight to the Express API</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

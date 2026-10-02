@@ -38,7 +38,7 @@
   .compact()
   .uniqBy('email', 'surveyId')
   .value();</code></pre>
-<p>الفائدة ماشي غير ديال النظافة: أي مهندس كيقرا السلسلة كيشوف المسار كامل (<code>map</code> &rarr; <code>compact</code> &rarr; <code>uniqBy</code> &rarr; <code>value()</code>) بلا ما يتبع متغيرات وسطية.<span class="cite"><a href="#n2">[2]</a></span></p>
+<p>الفائدة ماشي غير ديال النظافة: أي مهندس كيقرا السلسلة كيشوف المسار كامل (<code>map</code> → <code>compact</code> → <code>uniqBy</code> → <code>value()</code>) بلا ما يتبع متغيرات وسطية.<span class="cite"><a href="#n2">[2]</a></span></p>
 
 <h2>2 · علاش <code>find</code> + <code>save</code> هي Approach الخايب</h2>
 <p>الكورس عطانا مثال ديال "كيفاش ما تديرش": نجيبو الـ survey كامل، ندورو على الـ recipients بنفرنا فـNode، نبدّلو <code>responded</code>، ومن بعد <code>save()</code> نيشان.<span class="cite"><a href="#n3">[3]</a></span> المشاكل:</p>
@@ -52,9 +52,10 @@
 <h2>3 · query وحدة: <code>updateOne</code> + Mongo operators</h2>
 <p>الفكرة: بدل ما نجيبو و نسجلو، نستعملو <code>Survey.updateOne(criteria, update)</code> — الـ object الأول كيقول <strong>شكون</strong>، والتاني كيقول <strong>شنو يبدّل</strong>، والجوج كيتطبّقو من داخل Mongo بلا ما الـ survey يجي لعنّا أصلا.<span class="cite"><a href="#n4">[4]</a></span></p>
 <div class="compare">
-  <div class="col-bad"><span class="tag">find + save</span>الـ survey كامل و كل الـ recipients كيجيو للـ Node، كندورو عليهم بـloop، ومن بعد <code>save()</code> كيرجع يرسل نفس القائمة كاملة للـ DB.</div>
-  <div class="col-good"><span class="tag">updateOne + $inc</span>البحث و التسجيل كاملين من داخل Mongo: غير الـ survey و الـ recipient المعني كيتحرّكو، وما خرج حتى شي بيانات زايدة.</div>
+  <div class="col-bad"><span class="tag">find + save</span>كنجيبو الـ survey كامل بـ <code>find</code> مع كل الـ recipients، كندورو عليهم بـloop فـNode، ومن بعد <code>save()</code> كترجع ترسل نفس القائمة كاملة للـ DB.</div>
+  <div class="col-good"><span class="tag">updateOne + $inc</span><code>Survey.updateOne</code> وحدة: الـ criteria فيها <code>_id</code> + <code>$elemMatch: { email, responded: false }</code>، والـ update فيها <code>$inc: { [choice]: 1 }</code> و <code>$set: { 'recipients.$.responded': true }</code> — كاملة من داخل Mongo.</div>
 </div>
+<p class="mono">كيفاش تقرا هاد المخطط: قارن العمودين — find + save كتجر البيانات للـ Node، و updateOne كتخلي البحث والتسجيل داخل Mongo.</p>
 <pre><code>Survey.updateOne(
   {
     _id: surveyId,
@@ -79,7 +80,7 @@
 </div>
 <p>ومن بعد نزيدوها فسلسلة ديالنا فـ<code>.each()</code> مع destructuring: <code>.each(({ surveyId, email, choice }) =&gt; { ... })</code>.<span class="cite"><a href="#n7">[7]</a></span></p>
 <div class="callout">
-  <span class="label">Pitfall</span>
+  <span class="label">نتيجة كتجي غلط</span>
   ما تحطش <code>async/await</code> على هاد الـ query. السبب: حنا مامسهغلينش نجاوبو الـ SendGrid على محتوى — غير نجاوبوه 200 باش يسالي. الـ query كتمشي فالخلفية وحنا كنكملو، ماشي خاصنا نتسناوها قبل ما نجاوبو.<span class="cite"><a href="#n7">[7]</a></span>
 </div>
 
@@ -95,7 +96,7 @@
   <li>زيد <code>lastResponded: new Date()</code> داخل نفس الـ <code>$set</code> (خاصك تستنى جوج ثواني بعد الـ vote باش تشوفو، وإلا رجع بدّل نفس الـ survey وتستنى survey جديدة).</li>
   <li>الـ link ديال الـ email دابا كيمشي لـ<code>/api/surveys/:surveyId/:choice</code> — داكشي علاش صفحة الـ thanks كترجع <code>Cannot GET</code>. الحل: route Express بنفس الـ wildcards كيرجع "Thanks for voting".<span class="cite"><a href="#n9">[9]</a></span></li>
 </ul>
-<p>وإلى مشيتي تقلب على كيفاش تكتب استفسارات Mongoose معقدة: <strong>كتب البحث فـGoogle أولا</strong> (كل عملية تقريبا عندها سؤال StackOverflow جاهز)، ومن بعد <strong>جرب الاستفسار فـNode REPL</strong> — حل السيرفر، شغّل <code>node</code>، لصق متطلبات الاتصال ديال الـ models، ومن بعد <code>Survey.find({...}).then(console.log)</code> كيترجع فورا بلا ماتعاود تمشي للسيرفر كل مرة.<span class="cite"><a href="#n10">[10]</a></span></p>
+<p>وملي توحل فـ query معقدة ديال Mongoose: <strong>قلب فـGoogle هو اللول</strong> (تقريبا كل عملية عندها جواب واجد فـStackOverflow)، ومن بعد <strong>جربها فـNode REPL</strong> — حل <code>node</code>، لصق الـ models، وجرب <code>Survey.find({...}).then(console.log)</code> باش تشوف النتيجة فالبلاصة بلا ما تعاود تشغل السيرفر كل مرة. علاش هادي مهمة ملي تخدم لـclient: الـ client كيخلص على الحل السريع، ماشي على الساعات اللي ضيعتي وانت كتعاود التشغيل.<span class="cite"><a href="#n10">[10]</a></span></p>
 
 <h2>5 · ممارسة retrieval</h2>
 <p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki.</p>

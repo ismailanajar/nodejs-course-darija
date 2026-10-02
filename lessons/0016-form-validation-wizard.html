@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 16 — الـ validation و الـ wizard ديال form</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 16 · الكورس section 11</p>
+  <h1>الـ validation و الـ wizard ديال form</h1>
+  <p class="dek">فورم بلا validation = سيرفر كيرفض الإرسال فالأخير؛ وفورم بلا مراجعة = user متوتر. غادي نديرو validation عمومي + صفحات form &rarr; review بقيم كيبقاو.</p>
+  <p class="meta">~14 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تصاوب <strong>validation وحدة</strong> كتخدم مع أي حقل (<code>validate(values)</code> كترجع <code>errors</code> object)، و<strong>wizard</strong> ديال <code>SurveyForm &rarr; SurveyFormReview</code> بزر الرجوع اللي كيحافظ على الـ values. هادي هي الصورة اللي كيطلبها client: الفورم ما كيتحرّكش للخطوة الجاية وإلا كان شي حاجة خايبة.
+</div>
+
+<h2>1 · الأول: الفورم خاصو يبان محترم</h2>
+<p>قبل الـ JavaScript، تصليح الشكل: الـ div اللي فـ <code>App.js</code> كيزيد <code>container</code> class ديال materializeCSS — كتزيد padding من الستين وهكذا الفورم ما كيملاش الصفحة كاملة.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>الـ زر ديال التالي بدل <code>submit</code> بـ <strong>next</strong> (حيت باقي كاين مرحلة مراجعة)، بـ classes <code>teal btn flat right white-text</code> و icon ديال <code>done</code>. والـ زر ديال <strong>cancel</strong> هو <code>Link</code> من <code>react-router-dom</code> راجع لـ <code>/surveys</code> (الـ dashboard)، بـ classes <code>red btn flat white-text</code>.<span class="cite"><a href="#n1">[1]</a></span></p>
+
+<h2>2 · validate: قاعدة وحدة لكل حقل</h2>
+<p>الـ option اللي كتزيد فـ <code>reduxForm({ form, validate })</code> هو function كتُنادى آليا ملي الـ user يclicki على submit. توقيعها بسيط: كتاخد <code>values</code> object (نفسو اللي كنشوفو فـ <code>console.log</code>) وكترجع <code>errors</code> object.<span class="cite"><a href="#n2">[2]</a></span></p>
+<pre dir="ltr"><code>function validate(values) {
+  const errors = {};
+  if (!values.title) errors.title = 'You must provide a title';
+  return errors;
+}</code></pre>
+<p>القاعدة: <strong>إلا كان الـ <code>errors</code> فارغ، الـ form صحيحة وكتمشي للإرسال</strong>; وإلا كان فيه شي property، Redux Form كيوقّف الـ submission وكيعرف بلي شي حاجة ناقصة.<span class="cite"><a href="#n2">[2]</a></span></p>
+<p>الربط بين الـ error والـ حقل كيوقع بالـ <strong>اسم</strong>: الـ key ديال الـ error خاصو يتطابق مع الـ <code>name</code> ديال الـ <code>Field</code>، ومن بعد كتاخد <code>meta.error</code> و <code>meta.touched</code> داخل <code>SurveyField</code> باش توري الرسالة تحت الحقل.<span class="cite"><a href="#n3">[3]</a></span> الـ تصليح ديال الرسالة: <code>&lt;div class="red-text"&gt;</code> مع <code>margin-bottom: 20px</code>.<span class="cite"><a href="#n3">[3]</a></span></p>
+
+<h2>3 · تحقق من الـ recipients: split و regex</h2>
+<p>الـ حقل ديال <strong>Recipient List</strong> ماشي email وحدة — رسالة مفصولة بفواصل. فالـ <code>validate</code>: كنشكو الـ string بـ <code>split</code>، كنمشطو كل عنصر (<code>trim</code>)، ومن بعد كنفلترو اللي ما كيجيش صحيح بـ <strong>regex</strong> ديال الـ email ونحيدو من الـ <code>errors</code>.<span class="cite"><a href="#n4">[4]</a></span></p>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">string<small>"a@b.com, c@d.com"</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">split<small>فقرات</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">trim<small>تنظيف</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">regex filter<small>الصالح / المرفوض</small></div>
+  </div>
+</div>
+<p>ملاحظة عملية: الـ regex اللي فيه escape chars كيوقّف ESLint ديال Create React App بـ warning. الحل اللي جاب الكورس: تستعمل الـ HTML5 validation regex من <code>emailregex.com</code> اللي ما عندوش نفس المشكل.<span class="cite"><a href="#n4">[4]</a></span></p>
+
+<h2>4 · الـ wizard: form &rarr; review بقيم كيبقاو</h2>
+<p>القرار: <strong>component-level state</strong> داخل <code>SurveyNew</code> سميت <code>showFormReview</code> (كتبدا بـ <code>false</code>). الـ component عنده <code>renderContent()</code>: إلا <code>true</code> كيرجع <code>SurveyFormReview</code> (functional component)، وإلا لا كيرجع <code>SurveyForm</code>.<span class="cite"><a href="#n5">[5]</a></span></p>
+<p>التبديل كيوقع بـ callback: <code>onSurveySubmit</code> كتديرو لـ <code>SurveyForm</code> فـ <code>handleSubmit</code>، والـ body ديالو كينادي <code>this.setState({ showFormReview: true })</code>. تنبيه مهم: كتعطيه <strong>المرجع بلا قوسين</strong> — إلا حطّيتي <code>()</code> كينادى مباشرة فـ render.<span class="cite"><a href="#n5">[5]</a></span> وفالجانب الآخر، <code>onCancel</code> كيرجع <code>showFormReview</code> لـ <code>false</code>.<span class="cite"><a href="#n6">[6]</a></span></p>
+<p>باش الـ values ما تتمسحش ملي كتمشي من <code>SurveyForm</code> للـ review، كنزيدو <code>destroyOnUnmount: false</code> — لأن Redux Form <strong>كترمي القيم ملي الـ component يunmount</strong>، وهادي default عندها.<span class="cite"><a href="#n7">[7]</a></span> أما شكون كيقرا القيم فالـ review: <code>connect</code> و <code>mapStateToProps</code> كيرجعو <code>state.form.surveyForm.values</code> كـ prop اسمو <code>formValues</code>.<span class="cite"><a href="#n7">[7]</a></span></p>
+<p>الـ review نفسو ما كيكرر والو: الـ fields خرجناهم لـ <code>formFields.js</code> (نفس الـ array اللي كيستعملها <code>SurveyForm</code>)، والـ review كي loop عليها ويوري <code>label</code> + قيمة.<span class="cite"><a href="#n8">[8]</a></span> وأخيرا زر <strong>send survey</strong> (green, flat, right + icon ديال <code>email</code>) هو اللي خاصو يصيفط — وتلاتة ديال الـ tasks باقيين: شنو كيوقع فالـ submit، كيفاش نرجعو للـ dashboard، وكيفاش نرميو الـ values بعد ما الـ user يclicki cancel.<span class="cite"><a href="#n9">[9]</a></span></p>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> شنو كيرجع الـ <code>validate(values)</code> function ديال redux-form؟</p>
+  <button class="opt">boolean كتقول واش الـ form صحيحة تماما</button>
+  <button class="opt">string فيها رسالة error واحدة فقط للuser</button>
+  <button class="opt" data-correct>object ديال errors مكتوبين بـ field name</button>
+  <button class="opt">array ديال fields اللي خاصها validation كاملة</button>
+  <p class="explain">الـ <code>errors</code> object فارغ = form صحيحة؛ ملي كيكون فيه key، Redux Form كيوقّف الـ submit والـ key كيتقارن مع الـ <code>name</code> ديال الـ Field.<span class="cite"><a href="#n2">[2]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> مراجعة: من الدرس 15، منين كيجيو labels ديال الـ fields فـ <code>SurveyField</code>؟</p>
+  <button class="opt" data-correct>كيجيو كـ prop كتبتيه فـ config array</button>
+  <button class="opt">كيتكتبو بـ JavaScript فـ runtime ديال page</button>
+  <button class="opt">كيتجلبو من MongoDB مع الـ survey data</button>
+  <button class="opt">كينتجوا تلقائيا من عنوان الـ route الحالي</button>
+  <p class="explain">الـ <code>FIELDS</code> array فيها <code>label</code> و <code>name</code> لكل حقل، و<code>_.map</code> كيدوزهم كـ props للـ <code>Field</code>.<span class="cite"><a href="#n5">[5]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> شنو أول خطوة كتاخد مع الـ string ديال الـ emails قبل ما تvalidi كل عنصر؟</p>
+  <button class="opt">كنصاوبو الـ route handler ديال الـ surveys</button>
+  <button class="opt">كنزيدو كل email فـ object ديال survey</button>
+  <button class="opt">كنقلبو على webhook ديال feedback فـ Express</button>
+  <button class="opt" data-correct>نشكو الـ string بـ split وكنصايبو array</button>
+  <p class="explain">split &rarr; trim &rarr; regex: الـ string كتتفكك لقائمة، ومن بعد كنتحققو من كل email وحدها.<span class="cite"><a href="#n4">[4]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> علاش الـ values كيبقاو ملي كتدوز من <code>SurveyForm</code> لـ <code>SurveyFormReview</code>؟</p>
+  <button class="opt">حيت SurveyNew كيصاوبهم من جديد كل مرة</button>
+  <button class="opt" data-correct>حيت <code>destroyOnUnmount: false</code> والـ form name واحد</button>
+  <button class="opt">حيت الـ React component ماعمرها تunmount أبدا</button>
+  <button class="opt">حيت values كيتخزنو فـ localStorage ديال browser</button>
+  <p class="explain">Redux Form كترمي القيم بال-default ملي يunmount الـ component؛ <code>destroyOnUnmount: false</code> كتبقّاهم، ونفس الـ <code>form: 'surveyForm'</code> هو اللي كيخليهم فـ slice وحدة.<span class="cite"><a href="#n7">[7]</a></span></p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0006-redux-form-wizard.html">المرجع 0006</a><span>·</span>
+    <a href="../lessons/0015-redux-form-survey.html">الدرس السابق 15</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>17 — تصفيط survey للسيرفر و redirect</strong> (POST + history.push).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>11. Back to the Client!/14. Styling the Form.vtt</code> (00:23–01:17, 02:47–04:12, 05:09–05:38) — container class, next button, cancel Link</li>
+  <li id="n2"><code>11. Back to the Client!/15. Form Validation.vtt</code> (01:16–04:00, 04:37–05:32) — validate option, values arg, errors object, empty means valid</li>
+  <li id="n3"><code>11. Back to the Client!/16. Showing Validation Errors.vtt</code> + <code>17. Generalizing Field Validation.vtt</code> — errors matched to field name, red-text error div</li>
+  <li id="n4"><code>11. Back to the Client!/18. Validating Emails.vtt</code> + <code>19. Displaying Invalid Emails.vtt</code> + <code>20. Toggling Visibility.vtt</code> — comma list, split/trim/regex, emailregex.com workaround</li>
+  <li id="n5"><code>11. Back to the Client!/21. Advancing From SurveyForm.vtt</code> (00:14–00:29, 02:44–06:24, 07:05–10:26) — showFormReview state, renderContent, onSurveySubmit without parens</li>
+  <li id="n6"><code>11. Back to the Client!/22. Retreat to the Form.vtt</code> — onCancel callback to flip back to the form</li>
+  <li id="n7"><code>11. Back to the Client!/23. Persisting Form Values.vtt</code> (02:04–02:59, 07:15–10:07) — destroyOnUnmount default, state.form.surveyForm.values, form name namespace</li>
+  <li id="n8"><code>11. Back to the Client!/24. Refactoring Form Fields.vtt</code> + <code>25. Finalizing Review Fields.vtt</code> — shared formFields.js array rendered in the review</li>
+  <li id="n9"><code>11. Back to the Client!/26. Outstanding Form Work.vtt</code> (00:10–01:50, 08:39–10:50) — send survey button, three outstanding tasks</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

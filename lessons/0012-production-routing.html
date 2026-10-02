@@ -27,16 +27,8 @@
   <div><span class="tag">development</span>جوج سيرفرات: <code>CRA dev server</code> كيرجع <code>HTML</code> و <code>JS</code>، و <code>Express</code> غير كيجاوب على <code>API</code>.</div>
   <div><span class="tag">production</span>سيرفر واحد: <code>Express</code> بوحدو كيرجع <code>API</code> والملفات ديال <code>client/build</code> وحتى <code>index.html</code> للـ catch-all.</div>
 </div>
-<p>يعني التحدي هو: كيفاش نفس الـ <code>index.js</code> يجاوب على جوج أنواع ديال requests؟</p>
-<div class="flow">
-  <div class="flow-row">
-    <div class="flow-node">GET /api/surveys<small>route handler</small></div>
-    <div class="flow-arrow">·</div>
-    <div class="flow-node">GET /static/js/main.js<small>ملف من client/build</small></div>
-    <div class="flow-arrow">·</div>
-    <div class="flow-node">GET /surveys<small>index.html &rarr; React router</small></div>
-  </div>
-</div>
+<p class="mono">كيفاش تقرا هاد المخطط: العمود ديال development فيه جوج سيرفرات والعمود ديال production فيه سيرفر واحد كيدير كلشي.</p>
+<p>يعني التحدي هو: كيفاش نفس الـ <code>index.js</code> يجاوب على جوج أنواع ديال requests؟ الجواب: <code>route handler</code> للـ <code>GET /api/surveys</code>، وملف واجد من <code>client/build</code> للـ <code>GET /static/js/main.js</code>، و <code>index.html</code> للـ <code>GET /surveys</code> اللي React router غادي يفهمها.</p>
 
 <h2>2 · جوج أسطر: static + catch-all</h2>
 <p>الكل كيتصاوب تحت <code>if (process.env.NODE_ENV === 'production')</code> — هادي هي الـ environment variable اللي كيضبطها Heroku (ولكلاً Platform) بوحدو، يعني هاد الكود ما كيتحمّلش فـ local.<span class="cite"><a href="#n2">[2]</a></span></p>
@@ -53,7 +45,7 @@
 <ul>
   <li>الأول كيجيب الملفات المحددة (مثلاً <code>client/build/static/js/main.js</code>).<span class="cite"><a href="#n2">[2]</a></span></li>
   <li>الثاني هو الـ <strong>catch-all</strong>: إلا ما لقاش حتى route handler وما لقاش حتى ملف، كيعطيك <code>index.html</code> وكيخلّي <strong>React router</strong> هو اللي يفهم الـ path.<span class="cite"><a href="#n2">[2]</a></span></li>
-  <li><strong>الترتيب هو القانون</strong>: Express كيبدا من الفوق — API routes &rarr; الملفات ديال <code>client/build</code> &rarr; فالأخير الـ catch-all.<span class="cite"><a href="#n2">[2]</a></span></li>
+  <li><strong>الترتيب هو القانون</strong>: Express كيبدا من الفوق — API routes → الملفات ديال <code>client/build</code> → فالأخير الـ catch-all.<span class="cite"><a href="#n2">[2]</a></span></li>
 </ul>
 <div class="callout analogy">
   <span class="label">بأي مثال</span>
@@ -67,31 +59,21 @@
 
 <h2>3 · الـ build step والـ deploy</h2>
 <p>الـ <code>client/build</code> ماشي موجود بالسحر: كيتصاوب بـ <code>npm run build</code> من داخل مجلد <code>client</code>، وكيخلي bundle واحد ديال JS + CSS. <strong>كل تبديل فـ <code>src</code> خاصو يتبعو build جديد</strong> قبل ما تدفع.<span class="cite"><a href="#n3">[3]</a></span></p>
-<p>المسار ديال الـ deploy اللي اختارو فالكورس: commit &rarr; push &rarr; الـ platform كتنصب الـ dependencies ديال السيرفر &rarr; من بعد كتصاوب <strong>client build</strong> (اختارو "option number two" اللي كتزيد الـ build step فالـ deploy نفسها).<span class="cite"><a href="#n4">[4]</a></span></p>
+<p>المسار ديال الـ deploy اللي اختارو فالكورس: commit → push → الـ platform كتنصب الـ dependencies ديال السيرفر → من بعد كتصاوب <strong>client build</strong> (اختارو "option number two" اللي كتزيد الـ build step فالـ deploy نفسها).<span class="cite"><a href="#n4">[4]</a></span></p>
 <ol class="steps">
   <li><b>commit و push</b>التبدالات ديال <code>src</code> كتمشي لـ GitHub.</li>
-  <li><b>تنصيب deps ديال السيرفر</b>الـ platform كنصب الـ dependencies ديال الجذر أول حاجة.</li>
+  <li><b>تنصيب deps ديال السيرفر</b>الـ platform كدير <code>npm install</code> للـ dependencies ديال الجذر أول حاجة.</li>
   <li><b>build ديال الـ client</b><code>heroku-postbuild</code> كيدخل لـ <code>client</code>، كنصب deps ديالو، ومن بعد <code>npm run build</code> كيصاوب <code>client/build</code>.</li>
   <li><b>start ديال الـ server</b>Express كيبدا وكيقدم الـ API والـ static والـ catch-all كلشي من سيرفر واحد.</li>
 </ol>
+<p class="mono">كيفاش تقرا هاد المخطط: قرا الخطوات بالترتيب من commit حتى start — كل خطوة كتبني على اللي قبلها.</p>
 
 <pre dir="ltr"><code>"heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix client &amp;&amp; npm run build --prefix client"</code></pre>
 <p>فـ Render (البديل اللي كيتحط فـ ملاحظات الكورس)، كتبدّل الـ Build Command من <code>npm install</code> إلى <code>npm install &amp;&amp; npm run heroku-postbuild</code> — نفس الفكرة: <strong>الـ server deps قبل، الـ client build من بعد</strong>.<span class="cite"><a href="#n5">[5]</a></span></p>
-<p>وإلا طاح الـ build بـ أخطاء ديال versions (مثلاً <code>SyntaxError: Unexpected token</code> من <code>@hapi</code>): المشكل هو <strong>Node version mismatch</strong> بين جوج machines — الحل: حيّد <code>package-lock.json</code> (client + server)، استعمل LTS version ديال Node، وطابق <code>engines</code> فـ <code>package.json</code>.<span class="cite"><a href="#n6">[6]</a></span></p>
+<p>وإلا الـ build طاح لك بـ error ديال versions بحال <code>SyntaxError: Unexpected token</code> من <code>@hapi</code>، المشكل غالبا هو <strong>Node version mismatch</strong> بين laptop ديالك والـ platform. الحل فيه ثلاثة: حيّد <code>package-lock.json</code> من client ومن server، خدم بـ <strong>LTS version</strong> ديال Node، وطابق <code>engines</code> فـ <code>package.json</code>. علاش هادي مهمة ملي تخدم لـclient: حيت الـclient ما كيخلصش على error فـ deploy كتقدر تحلها بـ version وحدة مضبوطة.<span class="cite"><a href="#n6">[6]</a></span></p>
 
 <h2>4 · الاختبار: علاش refresh كيخدم</h2>
-<p>ملي كتكتب <code>/surveys</code> فـ address bar، هادي هي <strong>full page reload</strong> — request جديدة كتمشي للسيرفر بلا ما يمشي معك شي حاجة من الـ SPA. السيرفر ما لقاش ملف اسمو <code>build/surveys</code>، وفالأخير كيرجع <strong>index.html document</strong>، الـ body كيحمّل الـ React app، ومن بعد <strong>client-side router</strong> هو اللي كيتسلّم الـ route.<span class="cite"><a href="#n7">[7]</a></span></p>
-<div class="flow">
-  <div class="flow-row">
-    <div class="flow-node">address bar /surveys<small>full reload</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">Express<small>ما لقاش ملف</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">index.html<small>catch-all</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">React router<small>كيرسم SurveyList</small></div>
-  </div>
-</div>
+<p>ملي كتكتب <code>/surveys</code> فـ address bar، هادي هي <strong>full page reload</strong> — request جديدة كتمشي للسيرفر بلا ما يمشي معك شي حاجة من الـ SPA. السيرفر ما لقاش ملف اسمو <code>build/surveys</code>، وفالأخير كيرجع <strong>index.html document</strong>، الـ body كيحمّل الـ React app، ومن بعد <strong>client-side router</strong> هو اللي كيتسلّم الـ route وكيرسم SurveyList.<span class="cite"><a href="#n7">[7]</a></span></p>
 <p class="mono" style="font-size:0.8rem;color:var(--ink-faint)">المرجع: <a href="../reference/0004-stripe-deploy.html">Reference 0004 — Stripe &amp; Deploy Cheatsheet</a></p>
 
 <h2>5 · ممارسة retrieval</h2>

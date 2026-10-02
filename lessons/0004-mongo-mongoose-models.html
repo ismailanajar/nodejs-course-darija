@@ -22,44 +22,39 @@
 </div>
 
 <h2>1 · علاش خاصنا database أصلا؟</h2>
-<p>الكورس بدا بسؤال كبير: علاش خاصنا database، علاش cookie، علاش OAuth؟ وعطى القاعدة الأولى:<strong>الـ HTTP stateless</strong>. بين جوج requests منطقيين، السيرفر ما عندو حتى طريقة باش يعرف شكون ولا يشارك معلومات.<span class="cite"><a href="#n1">[1]</a></span> يعني إلا ما خزّنّاش الـ user فأي حاجة، كل request جديدة غادي تبدا من الصفر.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>القاعدة الأولى هي <strong>الـ HTTP stateless</strong>: السيرفر كينسى كلشي بين request وrequest — ما كيعرفش شكون صيفط ولا شنو وقع من قبل.<span class="cite"><a href="#n1">[1]</a></span> يعني بلا database كل دخول جديد كيبدا من الصفر وما كيبقى حتى أثر.<span class="cite"><a href="#n1">[1]</a></span> علاش هادي مهمة ملي تخدم لـclient: حيت غادي تفهمو علاش بلا تخزين ما كاين حتى login خدام.</p>
 <p>وفالحالة ديالنا: الكورس أولاً فسّر sign-in بـ email + password باش نفهمو المبدأ، ومن بعد دار pivot للـ OAuth flow — نفس المبدأ بس غير الطريقة كتبدل.<span class="cite"><a href="#n2">[2]</a></span></p>
 
 <h2>2 · فين كنحطو الكود و فين كنحطو الداتا؟</h2>
 <ul>
   <li>ما كاين حتى <strong>convention قوي</strong> فـ community ديال Express على تنظيم المشاريع — الكورس عطى طريقة خدامة معانا: <code>config</code> (API keys وإعدادات)، <code>routes</code> (ملف لكل مجموعة ديال routes)، و<code>models</code>.<span class="cite"><a href="#n3">[3]</a></span></li>
   <li>الهدف: كل ما شي حد دخل عبر الـ OAuth، نصاوبو <strong>record واحد</strong> ديالو فـ database.<span class="cite"><a href="#n4">[4]</a></span></li>
-  <li> MongoDB عندك جوج طرق: تنصب نسخة <strong>محلية</strong> على laptop ديالك، ولا تใชى <strong>instance مستضافة</strong> عند طرف ثالث. الكورس اختار الثانية حيت التنصيب المحلي ممكن يوقع فيه مشاكل (و"real pain" بحسب الكورس).<span class="cite"><a href="#n5">[5]</a></span></li>
+  <li>MongoDB عندك جوج طرق: تنصب نسخة <strong>محلية</strong> على laptop ديالك، ولا تستعمل <strong>instance مستضافة</strong> عند طرف ثالث. الكورس اختار الثانية حيت التنصيب المحلي ممكن يوقع فيه مشاكل (و"real pain" بحسب الكورس).<span class="cite"><a href="#n5">[5]</a></span></li>
 </ul>
 <div class="compare">
   <div class="col-bad"><span class="tag">LOCAL · محلية</span>كتنصب نسخة MongoDB على laptop ديالك — بحسب الكورس، التنصيب ممكن يوقع فيه مشاكل ويكون "real pain".</div>
   <div class="col-good"><span class="tag">REMOTE · مستضافة</span>instance عند طرف ثالث بلا تنصيب على جهازك — هادي هي اللي اختارها الكورس وحنا تبعناها.</div>
 </div>
+<p class="mono">كيفاش تقرا هاد المخطط: قارن العمودين — محلي مقابل مستضاف وشوف علاش اخترنا الثاني.</p>
 
-<h2>3 · Connection: Mongoose &rarr; Mongo</h2>
+<h2>3 · Connection: Mongoose → Mongo</h2>
 <pre><code>npm install --save mongoose</code></pre>
 <p>من بعد فـ <code>index.js</code>، فـ أعلى الملف وتحت مباشرة ديال <code>require</code> ديال Express، كنبنو Mongoose ونديرو الـ connection — <strong>قبل ما نعرفو الـ <code>app</code> object</strong>.<span class="cite"><a href="#n6">[6]</a></span></p>
 
-<h2>4 · Model &rarr; save &rarr; query</h2>
+<h2>4 · Model → save → query</h2>
 <ol>
   <li>نصاوبو <code>models/user.js</code> (جديد folder + file)، نطلبو mongoose من فوق، ومن object ديالو نجيبو <code>schema</code>.<span class="cite"><a href="#n7">[7]</a></span></li>
   <li>الـ <strong>model class</strong> كيمثّل <strong>collection كاملة</strong> ديال records فـ Mongo.<span class="cite"><a href="#n7">[7]</a></span></li>
   <li>الـ save كيوقع فـ <strong>Google strategy callback</strong>، اللي عندو <code>accessToken</code>، <code>refreshToken</code> و <code>profile</code> — والـ profile فيه الـ <strong>Google user ID</strong> اللي باغين نخزّنو.<span class="cite"><a href="#n8">[8]</a></span></li>
   <li>المشكل: إلا درتي <code>new User().save()</code> بلا سؤال، كل مرة الـ user يدخل كيتسجّل record جديد بنفس الـ Google ID.<span class="cite"><a href="#n9">[9]</a></span> الحل: <strong>قبل</strong> ما تصاوب جديد، سول واش شي حد عندو نفس الـ profile ID.<span class="cite"><a href="#n9">[9]</a></span></li>
-  <li>الـ query فـ Mongo <strong>asynchronous</strong> &rarr; كترجع <strong>promise</strong>، وعليها <code>.then(existingUser =&gt; ...)</code>. الـ <code>existingUser</code> يا مثيل (instance) ديال الموديل يا <code>null</code>.<span class="cite"><a href="#n10">[10]</a></span></li>
+  <li>الـ query فـ Mongo <strong>asynchronous</strong> → كترجع <strong>promise</strong>، وعليها <code>.then(existingUser =&gt; ...)</code>. الـ <code>existingUser</code> يا مثيل (instance) ديال الموديل يا <code>null</code>.<span class="cite"><a href="#n10">[10]</a></span></li>
   <li>فالأخير كتنادي <code>done(...)</code> باش تفوّت النتيجة لـ Passport.<span class="cite"><a href="#n10">[10]</a></span></li>
 </ol>
-<div class="flow">
-  <div class="flow-row">
-    <div class="flow-node">OAuth callback<small>profile يوصل</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">User.findOne<small>بحسب googleId</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">لقيتيه؟<small>استعملو</small></div>
-    <div class="flow-arrow">/</div>
-    <div class="flow-node">null؟<small>new User().save()</small></div>
-  </div>
+<div class="compare">
+  <div class="col-good"><span class="tag">لقيتيه · existingUser</span>كترجع نفس الـ record بـ <code>done(null, existingUser)</code> — بلا ما تصاوب جديد.</div>
+  <div class="col-bad"><span class="tag">null · ما لقيتيهش</span>كتصاوب جديد بـ <code>new User({ googleId }).save()</code> ومن بعد <code>done(null, user)</code>.</div>
 </div>
+<p class="mono">كيفاش تقرا هاد المخطط: قارن الحالتين — إلا لقيتي الـ user استعملو وإلا صاوب جديد.</p>
 <div class="callout pitfall">
   <span class="label">نتيجة كتجي غلط</span>
   إلا درتي <code>new User().save()</code> نيشان بلا ما تسول، كل مرة الـ user يدخل كيتسجّل record جديد بنفس الـ Google ID — وفالـ database كتلقى نسخ مكررين من نفس الشخص. الحل: قبل أي <code>save</code>، سول بـ <code>User.findOne({ googleId: profile.id })</code> — إلا رجع لك record استعملو، وإلا رجع <code>null</code> برك تصاوب جديد.

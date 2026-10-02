@@ -35,6 +35,14 @@
 <pre><code>passport.deserializeUser((id, done) =&gt; {
   User.findById(id).then(user =&gt; done(null, user));
 });</code></pre>
+<ol class="seq">
+  <li><span class="from">Google</span> <span class="arrow">→</span> <span class="to">Browser</span> <span class="what">redirect ديال callback بعد نجاح login</span></li>
+  <li><span class="from">Passport</span> <span class="arrow">→</span> <span class="to">cookie-session</span> <span class="what">serializeUser كيرجع <code>done(null, user.id)</code><span class="cite"><a href="#n1">[1]</a></span></span></li>
+  <li><span class="from">cookie-session</span> <span class="arrow">→</span> <span class="to">Browser</span> <span class="what">Set-Cookie فيه الـ token</span></li>
+  <li><span class="from">Browser</span> <span class="arrow">→</span> <span class="to">Server</span> <span class="what">request جديد، الـ cookie كتزيد أوتوماتيكياً</span></li>
+  <li><span class="from">Passport</span> <span class="arrow">→</span> <span class="to">Request</span> <span class="what">deserializeUser كيرجع user model من الـ ID<span class="cite"><a href="#n2">[2]</a></span></span></li>
+  <li><span class="from">Server</span> <span class="arrow">→</span> <span class="to">route handler</span> <span class="what"><code>req.user</code> ملّى فوق الـ request<span class="cite"><a href="#n4">[4]</a></span></span></li>
+</ol>
 <div class="callout">
   <span class="label">تنبيه</span>
   راجع الإملاء ديال <code>serializeUser</code> و <code>deserializeUser</code> — الكورس قال بزااف الناس كيديرو typo وكيوجهم خطأ "is not a function".<span class="cite"><a href="#n2">[2]</a></span>
@@ -45,6 +53,10 @@
   <li>بلا أي مكتبة زيادة، <strong>Express ما عندها حتى دعم ديال cookies out of the box</strong>.<span class="cite"><a href="#n3">[3]</a></span></li>
   <li>الحل: <code>npm install --save cookie-session</code> ونربطوها فـ <code>index.js</code> (اللي هو مكان الـ setup كامل ديال التطبيق).<span class="cite"><a href="#n3">[3]</a></span></li>
 </ul>
+<div class="callout analogy">
+  <span class="label">بأي مثال</span>
+  الـ cookie بحال سوارة المسبح: أول مرة كتثبت راسك عند الباب (الـ login)، كيعطوك سوارة — ومن بعد ما كيسولوكش على الوثائق من جديد، غير كيشوفو السوارة. هكذا خدام <code>cookie-session</code>: login مرة وحدة، ومن بعد كل request كيجيب معاها الـ cookie والسيرفر كيرجع ليك الـ user model.<span class="cite"><a href="#n3">[3]</a></span>
+</div>
 
 <h2>4 · كيفاش كيتجرّب: من cookie إلى req.user</h2>
 <div class="flow">

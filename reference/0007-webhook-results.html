@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>المرجع 0007 — Webhook &rarr; Results: Pipeline Cheatsheet</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">Reference · 0007 · Cheatsheet</p>
+  <h1>Webhook &rarr; Results: Pipeline ديال التصويت</h1>
+  <p class="dek">كلشي على صفحة وحدة: من نقرة الـ email حتى لرقم الـ yes/no داخل الـ DB، والـ route ديال الـ dashboard اللي كيعرضها.</p>
+  <p class="meta">Compressed from course sections 12–13 · Print this page</p>
+</header>
+
+<h2>1 · الـ pipeline كامل</h2>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">SendGrid<small>click event, batch كل ~30s</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">public URL<small>ngrok / heroku</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">POST /api/surveys/webhooks<small>Express</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">MongoDB<small>$inc + $set</small></div>
+  </div>
+  <div class="flow-row">
+    <div class="flow-node">parse<small>URL.pathname + path-parser</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">validate<small>match &rarr; null = discard</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">dedupe<small>chain: map &rarr; compact &rarr; uniqBy</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">respond 200<small>بلا ما تستنى الـ query</small></div>
+  </div>
+</div>
+<ul>
+  <li>الـ webhook = سيرفر كيصيفط معطيات لسيرفر آخر حيت وقع حدث.<span class="cite"><a href="#src1">[1]</a></span> الـ SendGrid كيجمع الأحداث وكيصيفط bulk واحد كل 30 ثانية ولا دقيقة — فـ<code>req.body</code> array ديال objects.<span class="cite"><a href="#src2">[2]</a></span></li>
+  <li><code>localhost:5000</code> عنوان خاص بالجهاز — الـ SendGrid خاصو URL عام: نهار <code>ngrok http 5000</code> (خزّن الـ authtoken مرة وحدة)، ونهار <code>https://your_app.herokuapp.com</code> فالـ production. <strong>الـ ngrok address كتبدل مع كل restart</strong> فخاصك تعاود تبدّلها فـSendGrid.<span class="cite"><a href="#src3">[3]</a></span></li>
+  <li>فين كتبدل: <code>Settings</code> &rarr; <code>Mail Settings</code> &rarr; <code>Event Notification</code> &rarr; HTTP POST URL = <code>https://YOUR_HOST/api/surveys/webhooks</code> (خاص الـ route كامل) + <strong>Test Your Integration</strong>.<span class="cite"><a href="#src4">[4]</a></span> الـ body اللي كيجي: array، كل عنصر عندو <code>event</code>، و<code>click</code> فيه غير <code>email</code> + <code>url</code>.<span class="cite"><a href="#src5">[5]</a></span></li>
+  <li>الـ SendGrid <strong>ما كيقبلش جوج webhook URL</strong> فحساب واحد — فمع كل deploy خاصك تعاود تشوف فين كيشير.<span class="cite"><a href="#src17">[17]</a></span></li>
+</ul>
+
+<h2>2 · URL encoding scheme</h2>
+<p>الـ click event <strong>ما فيهش</strong> الـ survey ولا الجواب — داكشي علاش كنخبعوهم فـالرابط:<span class="cite"><a href="#src6">[6]</a></span></p>
+<table dir="ltr">
+  <tr><th>Link فـemail</th><th>شنو فيه</th><th>فين كيتبنا</th></tr>
+  <tr><td><code>/api/surveys/&lt;surveyId&gt;/yes</code></td><td>survey id + choice</td><td><code>services/emailTemplates/surveyTemplate.js</code></td></tr>
+  <tr><td><code>/api/surveys/&lt;surveyId&gt;/no</code></td><td>survey id + choice</td><td>نفس الـ template (الزر الثاني)</td></tr>
+  <tr><td><code>pathname</code> فقط</td><td>دومين كيتحيد بـ<code>new URL(...).pathname</code></td><td>الـ pipeline قبل الـ <code>p.test()</code></td></tr>
+</table>
+<p>الـ route ديال الـ thanks خاصو يقبل نفس الـ wildcards: <code>app.get('/api/surveys/:surveyId/:choice', ...)</code> وإلا كيرجع <code>Cannot GET</code>.<span class="cite"><a href="#src16">[16]</a></span></p>
+
+<h2>3 · قواعد الـ pre-processing</h2>
+<table dir="ltr">
+  <tr><th>المشكل</th><th>العلاش</th><th>الحل</th></tr>
+  <tr><td><code>undefined</code> داخل الـ array</td><td>event ديال <code>bounce</code> ولا URL برّا</td><td><code>_.compact()</code></td></tr>
+  <tr><td>نفس النقرة تكرّرات</td><td>race condition / الـ SendGrid ما تلقاش response ناجح</td><td><code>_.uniqBy('email', 'surveyId')</code></td></tr>
+  <tr><td><code>p.test()</code> &rarr; <code>null</code></td><td>الـ path ماشي ديال الـ survey</td><td>discard + ما تديرش destructuring على <code>null</code></td></tr>
+  <tr><td><code>Path is not a constructor</code></td><td>export ديال <code>path-parser</code></td><td><code>const { Path } = require('path-parser')</code></td></tr>
+</table>
+<p style="font-size:0.9rem"><span class="cite"><a href="#src7">[7]</a></span><span class="cite"><a href="#src9">[9]</a></span><span class="cite"><a href="#src10">[10]</a></span> الـ <code>const p = new Path('/api/surveys/:surveyId/:choice')</code> كيخرج <strong>برّا</strong> الـ map — ماشي متعاود فكل iteration.<span class="cite"><a href="#src10">[10]</a></span></p>
+
+<h2>4 · الاستفسار ديال التسجيل</h2>
+<pre dir="ltr"><code>Survey.updateOne(
+  {
+    _id: surveyId,                                            // ماشي id
+    recipients: { $elemMatch: { email, responded: false } }   // vote واحد فقط
+  },
+  {
+    $inc: { [choice]: 1 },                                    // yes + 1 ولا no + 1
+    $set: { 'recipients.$.responded': true, lastResponded: new Date() }
+  }
+).exec();                                                     // خاصها exec()</code></pre>
+<ul>
+  <li>ثلاث معايير: <code>_id</code> + recipient بنفس الـ <code>email</code> + <code>responded: false</code> — إلا صوّت من قبل، الـ criteria كتمشي والتسجيل كيتوقف.<span class="cite"><a href="#src11">[11]</a></span></li>
+  <li><code>$inc</code> = increment؛ الأقواس المربعة = key interpolation (ماشي array): قيمة <code>choice</code> كتولي اسم الـ property.<span class="cite"><a href="#src12">[12]</a></span></li>
+  <li><code>recipients.$.responded</code> — الـ <code>$</code> كيشير لنفس العنصر اللي لقاه <code>$elemMatch</code>.<span class="cite"><a href="#src12">[12]</a></span></li>
+  <li>كولشي كيتطبّق من داخل Mongo: ماشي <code>find</code> + تعديل يدوي + <code>save()</code> (اللي كتنقل الـ recipients كاملين جوج مرات).<span class="cite"><a href="#src11">[11]</a></span></li>
+  <li>بلا <code>async/await</code> على الـ query: غير جاوب SendGrid بـ200 ونكمل.<span class="cite"><a href="#src13">[13]</a></span> وإلا ما جاوبتيش، غادي يعاود الـ event وتعاود تلقى الـ duplicates.<span class="cite"><a href="#src9">[9]</a></span></li>
+</ul>
+
+<h2>5 · GET /api/surveys (الـ dashboard)</h2>
+<pre dir="ltr"><code>app.get('/api/surveys', requireLogin, async (req, res) =&gt; {
+  const surveys = await Survey
+    .find({ _user: req.user.id })
+    .select({ recipients: false });     // whitelist
+  res.send(surveys);
+});</code></pre>
+<p>الـ response = array ديال objects (غير ديال المستعمل الحالي، و بلا الـ recipients):<span class="cite"><a href="#src14">[14]</a></span><span class="cite"><a href="#src15">[15]</a></span></p>
+<pre dir="ltr"><code>[{
+  "_id": "...", "dateSent": "...", "lastResponded": "...",
+  "yes": 49000, "no": 412,
+  "subject": "...", "body": "...", "_user": "..."
+}]</code></pre>
+<ul>
+  <li>الترتيب: الأقدم فوق فالأصل — <code>.reverse()</code> قبل ما <code>map</code> باش الجديد يبان فوق.<span class="cite"><a href="#src18">[18]</a></span></li>
+  <li>Redux: <code>FETCH_SURVEYS</code> + <code>fetchSurveys()</code> &rarr; <code>surveysReducer</code> (state الافتراضي array خاوية) &rarr; <code>combineReducers</code> &rarr; <code>SurveyList</code> و <code>componentDidMount</code>.<span class="cite"><a href="#src19">[19]</a></span><span class="cite"><a href="#src20">[20]</a></span></li>
+</ul>
+
+<h2 id="sources">Sources</h2>
+<ol style="font-size:0.85rem" dir="ltr">
+  <li id="src1">Section 12 · <em>Feedback with Webhooks</em> (02:01–02:25) — <code>12. Handling Webhook Data/01. Feedback with Webhooks.vtt</code></li>
+  <li id="src2">Section 12 · <em>Webhooks in Development</em> (01:21–01:56) — <code>12. Handling Webhook Data/02. Webhooks in Development.vtt</code></li>
+  <li id="src3">Section 12 · <em>Ngrok setup instead of LocalTunnel</em> — <code>12. Handling Webhook Data/05. Ngrok setup instead of LocalTunnel.html</code></li>
+  <li id="src4">Section 12 · <em>Testing Webhooks</em> (00:36–02:44, 03:10–03:57) — <code>12. Handling Webhook Data/06. Testing Webhooks.vtt</code></li>
+  <li id="src5">Section 12 · <em>Finalizing Webhook Setup</em> (00:34–04:17) — <code>12. Handling Webhook Data/07. Finalizing Webhook Setup.vtt</code></li>
+  <li id="src6">Section 12 · <em>Encoding Survey Data</em> (00:37–05:29) — <code>12. Handling Webhook Data/08. Encoding Survey Data.vtt</code></li>
+  <li id="src7">Section 12 · <em>Dirty Data from Webhooks</em> (01:00–06:46) — <code>12. Handling Webhook Data/09. Dirty Data from Webhooks.vtt</code></li>
+  <li id="src8">Section 12 · <em>Processing Pipeline</em> (04:06–07:49) — <code>12. Handling Webhook Data/10. Processing Pipeline.vtt</code></li>
+  <li id="src9">Section 12 · <em>Unique Events</em> (01:06–03:05, 04:11–04:39) — <code>12. Handling Webhook Data/14. Unique Events.vtt</code></li>
+  <li id="src10">Section 12 · <em>Lodash Chain Helper</em> (00:31–02:36, 07:42–10:15) — <code>12. Handling Webhook Data/15. Lodash Chain Helper.vtt</code></li>
+  <li id="src11">Section 12 · <em>Finding the Exact Survey</em> (05:26–13:01) — <code>12. Handling Webhook Data/17. Finding the Exact Survey.vtt</code></li>
+  <li id="src12">Section 12 · <em>Updating Records</em> (01:43–07:52) — <code>12. Handling Webhook Data/18. Updating Records.vtt</code></li>
+  <li id="src13">Section 12 · <em>Executing Queries</em> (02:44–07:00) — <code>12. Handling Webhook Data/19. Executing Queries.vtt</code></li>
+  <li id="src14">Section 13 · <em>Fetching a List of Surveys</em> (00:27–06:49) — <code>13. The Home Stretch!/01. Fetching a List of Surveys.vtt</code></li>
+  <li id="src15">Section 13 · <em>Whitelisting Model Fields</em> (03:31–09:11) — <code>13. The Home Stretch!/02. Whitelisting Model Fields.vtt</code></li>
+  <li id="src16">Section 12 · <em>Odds n' Ends Around Surveys</em> (00:17–01:52) — <code>12. Handling Webhook Data/21. Odds n' Ends Around Surveys.vtt</code></li>
+  <li id="src17">Section 13 · <em>Expanding the App</em> (01:01–02:56) — <code>13. The Home Stretch!/08. Expanding the App.vtt</code></li>
+  <li id="src18">Section 13 · <em>Reversing the Survey List</em> (00:10–01:33) — <code>13. The Home Stretch!/07. Reversing the Survey List.vtt</code></li>
+  <li id="src19">Section 13 · <em>Wiring Surveys Up to Redux</em> (00:30–05:40) — <code>13. The Home Stretch!/04. Wiring Surveys Up to Redux.vtt</code></li>
+  <li id="src20">Section 13 · <em>Wiring React to Redux</em> (00:16–05:16) — <code>13. The Home Stretch!/05. Wiring React to Redux.vtt</code></li>
+</ol>
+
+<p class="nav-links"><a href="../lessons/0018-webhooks-dev-setup.html">الدرس 18</a><span>·</span><a href="../lessons/0019-webhook-results-query.html">الدرس 19</a><span>·</span><a href="../lessons/0020-dashboard-surveys.html">الدرس 20</a><span>·</span><a href="../MISSION.md">المهمة</a></p>
+
+</main>
+</body>
+</html>

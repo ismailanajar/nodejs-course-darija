@@ -31,6 +31,10 @@
   <li>الهدف: كل ما شي حد دخل عبر الـ OAuth، نصاوبو <strong>record واحد</strong> ديالو فـ database.<span class="cite"><a href="#n4">[4]</a></span></li>
   <li> MongoDB عندك جوج طرق: تنصب نسخة <strong>محلية</strong> على laptop ديالك، ولا تใชى <strong>instance مستضافة</strong> عند طرف ثالث. الكورس اختار الثانية حيت التنصيب المحلي ممكن يوقع فيه مشاكل (و"real pain" بحسب الكورس).<span class="cite"><a href="#n5">[5]</a></span></li>
 </ul>
+<div class="compare">
+  <div class="col-bad"><span class="tag">LOCAL · محلية</span>كتنصب نسخة MongoDB على laptop ديالك — بحسب الكورس، التنصيب ممكن يوقع فيه مشاكل ويكون "real pain".</div>
+  <div class="col-good"><span class="tag">REMOTE · مستضافة</span>instance عند طرف ثالث بلا تنصيب على جهازك — هادي هي اللي اختارها الكورس وحنا تبعناها.</div>
+</div>
 
 <h2>3 · Connection: Mongoose &rarr; Mongo</h2>
 <pre><code>npm install --save mongoose</code></pre>
@@ -55,6 +59,10 @@
     <div class="flow-arrow">/</div>
     <div class="flow-node">null؟<small>new User().save()</small></div>
   </div>
+</div>
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  إلا درتي <code>new User().save()</code> نيشان بلا ما تسول، كل مرة الـ user يدخل كيتسجّل record جديد بنفس الـ Google ID — وفالـ database كتلقى نسخ مكررين من نفس الشخص. الحل: قبل أي <code>save</code>، سول بـ <code>User.findOne({ googleId: profile.id })</code> — إلا رجع لك record استعملو، وإلا رجع <code>null</code> برك تصاوب جديد.
 </div>
 
 <h2>5 · ممارسة retrieval</h2>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference 3 — Client + Redux: architecture ديال sections 06–07</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">Reference · 0003 · Cheatsheet</p>
+  <h1>Client + Redux: architecture ديال sections 06–07</h1>
+  <p class="dek">دوج سيرفر، Redux flow، الـ routes، ودورة الـ auth — كلشي فورقة وحدة.</p>
+  <p class="meta">Compressed from course sections 06–07 · Print this page</p>
+</header>
+
+<h2>دوج سيرفر فـ التطوير (ونظام proxy)</h2>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">Browser<small>localhost:3000 · CRA dev server</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">setupProxy.js<small>/api + /auth/google</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">Express API<small>localhost:5000</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">MongoDB<small>users, surveys</small></div>
+  </div>
+</div>
+<ul>
+  <li>الـ client كاين فـ <code>server/client/</code>، وفيه server خاص بـ <code>npm start</code> على <code>localhost:3000</code>، و <code>npm run dev</code> (concurrently) كيشغّل جوج الخوادم مرة وحدة.<span class="cite"><a href="#src1">[1]</a></span><span class="cite"><a href="#src2">[2]</a></span></li>
+  <li>الـ browser كي<strong>زيد domain ديالو</strong> على الروابط النسبية (= :3000 ماشي :5000) — علّاش خاص proxy: <code>client/src/setupProxy.js</code> بـ <code>http-proxy-middleware@2</code>، و CRA كيحمّلو بالسمية وحد.<span class="cite"><a href="#src3">[3]</a></span><span class="cite"><a href="#src4">[4]</a></span></li>
+  <li>فـ production ما كاينش CRA server ولا proxy — الروابط النسبية كتمشي مباشرة لـ domain = نفس الـ Express.<span class="cite"><a href="#src5">[5]</a></span></li>
+</ul>
+<pre><code>// client/src/setupProxy.js
+const { createProxyMiddleware } = require('http-proxy-middleware');
+module.exports = function (app) {
+  app.use(['/api', '/auth/google'],
+    createProxyMiddleware({ target: 'http://localhost:5000' }));
+};</code></pre>
+
+<h2>Redux data flow</h2>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">component<small>calls action creator</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">action / thunk<small>{ type, payload }</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">dispatch<small>funnel &rarr; reducers</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">store<small>state &rarr; re-render</small></div>
+  </div>
+</div>
+<ul>
+  <li>Vanilla rule: الـ action خاصو <strong>object فوري</strong> فيه <code>type</code> + <code>payload</code>.<span class="cite"><a href="#src10">[10]</a></span></li>
+  <li><strong>Redux Thunk</strong> (middleware مربوط فـ <code>src/index.js</code>): إلا الـ action creator رجّع function، كيناديها بـ <code>dispatch</code> — باش تسنى الـ API قبل ما تدير dispatch.<span class="cite"><a href="#src10">[10]</a></span></li>
+  <li><code>combineReducers({ auth: authReducer })</code> → الـ key = مفتاح فـ <code>state</code>، يعني <code>state.auth</code>.<span class="cite"><a href="#src7">[7]</a></span></li>
+  <li>الـ component كياخد state بـ <code>connect(mapStateToProps)</code>، و <code>mapStateToProps({ auth })</code> كترجع الـ props اللي يحتاج.<span class="cite"><a href="#src6">[6]</a></span><span class="cite"><a href="#src11">[11]</a></span></li>
+</ul>
+
+<h2>Router skeleton</h2>
+<table dir="ltr">
+  <tr><th>Path</th><th>Component</th><th>exact?</th></tr>
+  <tr><td><code>/</code></td><td>Landing (marketing, public)</td><td>yes</td></tr>
+  <tr><td><code>/surveys</code></td><td>Dashboard (protected)</td><td>yes</td></tr>
+  <tr><td><code>/surveys/new</code></td><td>SurveyNew (protected)</td><td>yes</td></tr>
+</table>
+<ul>
+  <li><code>BrowserRouter</code> كيقبل <strong>child وحدة</strong> فقط — الـ routes كاملين داخل div وحدة، و Header فوقهم (component عادي ماشي route = كيبان دائما).<span class="cite"><a href="#src8">[8]</a></span><span class="cite"><a href="#src9">[9]</a></span></li>
+  <li><code>exact</code> على كل route — وإلا <code>/</code> كتغلب بـ greedy فـ <code>/surveys</code> وكتبان مزدوجة.<span class="cite"><a href="#src8">[8]</a></span></li>
+  <li><strong><code>&lt;Link to&gt;</code></strong> للتصفح الداخلي (React Router)، <strong><code>&lt;a href&gt;</code></strong> للخارج: OAuth <code>/auth/google</code> و logout <code>/api/logout</code>.<span class="cite"><a href="#src14">[14]</a></span></li>
+</ul>
+
+<h2>دورة الـ auth state</h2>
+<table dir="ltr">
+  <tr><th>state.auth</th><th>Meaning</th><th>Header shows</th></tr>
+  <tr><td><code>null</code></td><td>request مازال جاي (default)</td><td>والو — ما كاين content jumping</td></tr>
+  <tr><td><code>false</code></td><td>الطلب كمل، ما مسجّلش</td><td><code>Login With Google</code> &rarr; <code>/auth/google</code></td></tr>
+  <tr><td>user model</td><td>الطلب كمل، مسجّل</td><td><code>Logout</code> &rarr; <code>/api/logout</code></td></tr>
+</table>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">App.componentDidMount<small>fetchUser()</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">axios<small>GET /api/current_user</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">dispatch<small>payload: res.data</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">authReducer<small>null / false / user</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">Header<small>renderContent &rarr; re-render</small></div>
+  </div>
+</div>
+<ul>
+  <li>Payload خاصو <strong><code>res.data</code> غير</strong> (غير هو الـ user model)، و <code>action.payload || false</code> كيحوّل الـ string الخاوي لـ <code>false</code>.<span class="cite"><a href="#src11">[11]</a></span></li>
+  <li><strong>بعد login:</strong> <code>passport.authenticate('google')</code> من بعد handler ديال <code>(req, res) => res.redirect('/surveys')</code> — وإلا كيطيح error ماشي مفهوم.<span class="cite"><a href="#src12">[12]</a></span></li>
+  <li><strong>بعد logout:</strong> anchor عادي <code>href="/api/logout"</code>، والسيرفر <code>res.redirect('/')</code> (ماشي user model).<span class="cite"><a href="#src13">[13]</a></span></li>
+</ul>
+
+<h2>الملفات المهمة</h2>
+<table dir="ltr">
+  <tr><th>File</th><th>Role</th></tr>
+  <tr><td><code>client/src/index.js</code></td><td>Redux: store + Provider + thunk middleware</td></tr>
+  <tr><td><code>client/src/App.js</code></td><td>class component: routes + <code>componentDidMount</code> &rarr; fetchUser</td></tr>
+  <tr><td><code>client/src/reducers/index.js</code></td><td><code>combineReducers</code></td></tr>
+  <tr><td><code>client/src/reducers/authReducer.js</code></td><td>null / false / user model</td></tr>
+  <tr><td><code>client/src/actions/index.js</code></td><td>fetchUser (axios + thunk)</td></tr>
+  <tr><td><code>client/src/components/header.js</code></td><td>connect + renderContent + Link logo</td></tr>
+  <tr><td><code>client/src/setupProxy.js</code></td><td>dev proxy rules — ما تمحاش</td></tr>
+  <tr><td><code>routes/auth.js</code></td><td>callback &rarr; redirect('/surveys') و logout &rarr; redirect('/')</td></tr>
+</table>
+
+<h2>الدروس المرتبطة</h2>
+<ul>
+  <li><a href="../lessons/0006-dev-vs-prod-env.html">الدرس 6 — Dev vs Prod: keys و environment variables</a> (القسم 05)</li>
+  <li><a href="../lessons/0007-client-server-split.html">الدرس 7 — الـ Client: separate server و CRA proxy</a> (القسم 06)</li>
+  <li><a href="../lessons/0008-redux-auth-store.html">الدرس 8 — Redux و auth reducer: أول state ديالنا</a> (القسم 07)</li>
+  <li><a href="../lessons/0009-react-router-header.html">الدرس 9 — React Router و Header: التصفح و current user</a> (القسم 07)</li>
+  <li><a href="../lessons/0010-redux-thunk-fetch-user.html">الدرس 10 — Redux Thunk و fetchUser: جلب currentUser و redirects</a> (القسم 07)</li>
+</ul>
+
+<h2 id="sources">Sources</h2>
+<ol style="font-size:0.85rem" dir="ltr">
+  <li id="src1">Course lecture 06 · <em>A Separate Front End Server</em> — <code>06. Moving to the Client Side/02. A Separate Front End Server.vtt</code></li>
+  <li id="src2">Course lecture 06 · <em>Running the Client and Server</em> — <code>06. Moving to the Client Side/03. Running the Client and Server.vtt</code></li>
+  <li id="src3">Course lecture 06 · <em>Important Create React App Proxy Update</em> — <code>06. Moving to the Client Side/04. Important Create React App Proxy Update.html</code></li>
+  <li id="src4">Course lecture 06 · <em>The Beauty of Create React App's Proxy</em> — <code>06. Moving to the Client Side/06. The Beauty of Create React App's Proxy.vtt</code></li>
+  <li id="src5">Course lecture 06 · <em>Why This Architecture</em> — <code>06. Moving to the Client Side/07. [Optional] Why This Architecture.vtt</code></li>
+  <li id="src6">Course lecture 07 · <em>Redux Review and Setup</em> — <code>07. Developing the Client Side/10. Redux Review and Setup.vtt</code></li>
+  <li id="src7">Course lecture 07 · <em>Finishing Reducer Setup</em> — <code>07. Developing the Client Side/12. Finishing Reducer Setup.vtt</code></li>
+  <li id="src8">Course lecture 07 · <em>Matching Routes with Exact</em> — <code>07. Developing the Client Side/16. Matching Routes with Exact.vtt</code></li>
+  <li id="src9">Course lecture 07 · <em>Always Visible Components</em> — <code>07. Developing the Client Side/17. Always Visible Components.vtt</code></li>
+  <li id="src10">Course lecture 07 · <em>Basics of Redux Thunk</em> — <code>07. Developing the Client Side/23. Basics of Redux Thunk.vtt</code></li>
+  <li id="src11">Course lecture 07 · <em>AuthReducer Return Values</em> — <code>07. Developing the Client Side/27. AuthReducer Return Values.vtt</code></li>
+  <li id="src12">Course lecture 07 · <em>Redirecting a User on Auth</em> — <code>07. Developing the Client Side/30. Redirecting a User on Auth.vtt</code></li>
+  <li id="src13">Course lecture 07 · <em>Redirect on Logout</em> — <code>07. Developing the Client Side/31. Redirect on Logout.vtt</code></li>
+  <li id="src14">Course lecture 07 · <em>Link Tags</em> — <code>07. Developing the Client Side/33. Link Tags.vtt</code></li>
+</ol>
+
+<p class="nav-links"><a href="../lessons/0007-client-server-split.html">&larr; الدرس 7</a><span>·</span><a href="../reference/0002-auth-mongoose-flow.html">Reference 0002</a><span>·</span><a href="../reference/0004-stripe-deploy.html">Reference 0004</a><span>·</span><a href="../MISSION.md">المهمة</a></p>
+
+</main>
+</body>
+</html>

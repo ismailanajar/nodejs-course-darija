@@ -76,6 +76,18 @@ app.listen(5000);</code></pre>
   <li>بجانب <code>get</code> عندينا <code>post</code>، <code>put</code>، <code>patch</code>، <code>delete</code> — الـ methods غير معنى نوع الـ request.<span class="cite"><a href="#n6">[6]</a></span></li>
   <li><code>app.listen(5000)</code> وبعدها كتحل <code>localhost:5000</code> فـ browser.<span class="cite"><a href="#n4">[4]</a></span></li>
 </ul>
+<p>هاد الدرس كامل كيتجمع فهاد الـ sequence ديال الخمس خطوات:</p>
+<ol class="steps">
+  <li><b>mkdir Server &amp;&amp; cd Server</b> directory جديدة للمشروع.</li>
+  <li><b>npm init</b> كيصاوب <code>package.json</code> — الـ central hub ديال dependencies.</li>
+  <li><b>npm install --save express</b> كينصب Express ويسجلو تحت <code>dependencies</code>.</li>
+  <li><b>index.js</b> كتب <code>require(express)</code>، وحد <code>app.get(...)</code>، ومن بعد <code>app.listen(5000)</code>.</li>
+  <li><b>localhost:5000</b> كتحل فـ browser وكيجاوبك أول route handler.</li>
+</ol>
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  من أول تشغيل ديال السيرفر، إلا كتبتي <code>import express from 'express'</code> بحال الـ React side، فـ terminal غادي تشوف <code>SyntaxError: Cannot use import statement outside a module</code>. الحل: فـ <code>index.js</code> ديال Node استعمل <code>require</code> — هادا هو نظام <strong>CommonJS</strong> اللي كيستعملو الـ backend.
+</div>
 
 <h2>4 · تفاصيل صغيرة كتفرق</h2>
 <ul>

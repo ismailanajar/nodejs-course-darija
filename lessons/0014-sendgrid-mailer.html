@@ -29,6 +29,10 @@
   surveyTemplate(survey)
 );</code></pre>
 <p>والمهم: <strong>الـ survey ما كيتحفظش وحدو</strong> — خاصك تنادي بـ <code>survey.save()</code> يدوياً.<span class="cite"><a href="#n1">[1]</a></span> والـ mailer ماشي strictly coupled للـ survey: غير object فيه <code>subject</code> و <code>recipients</code>، وهكذا تقدر تستعملو لأي email أخرى فالمستقبل.<span class="cite"><a href="#n7">[7]</a></span></p>
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  نسيتي <code>survey.save()</code>: الـ email كتوصل للناس كاملين ولكن الـ survey ما كاينش فـ DB — يعني كاين links ديال yes/no على استبيان ما منسجّلش، وما تقدرش تقرا شكون صوّت. الحل: <code>await survey.save()</code> من بعد ما الـ send ينجح.
+</div>
 
 <h2>2 · تشريح الـ Mailer class</h2>
 <p>الملف: <code>services/Mailer.js</code> — <code>class Mailer extends helper.Mail</code> (الـ <code>helper</code> جاي من الـ SendGrid NodeJS module اللي كنصايبو بـ <code>npm install @sendgrid/mail</code> فالأخير).<span class="cite"><a href="#n3">[3]</a></span><span class="cite"><a href="#n4">[4]</a></span></p>
@@ -45,6 +49,12 @@
   <tr><td><code>this.sgApi = SendGrid(keys.sendGridKey)</code></td><td>الـ API object اللي كيتكلم مع SendGrid.<span class="cite"><a href="#n10">[10]</a></span></td></tr>
 </table>
 <p>باش كتدير <strong>click tracking</strong>؟ حيت الـ email اللي كنصيفطو كتبقى وحدة للجميع، ولكن SendGrid كتبديل كل link بـ link خاص بيها — وهكذا كتعرف شكون clicka. هادي هي النقطة اللي كلشي كيعتمد عليها.<span class="cite"><a href="#n14">[14]</a></span></p>
+<ol class="seq">
+  <li><span class="from">Mailer</span> <span class="arrow">→</span> <span class="to">SendGrid</span> <span class="what">POST /v3/mail/send مع HTML واحد للجميع</span></li>
+  <li><span class="from">SendGrid</span> <span class="arrow">→</span> <span class="to">Inbox</span> <span class="what">كل link كيتبدل بـ tracking link خاص</span></li>
+  <li><span class="from">Recipient</span> <span class="arrow">→</span> <span class="to">SendGrid</span> <span class="what">الـ click كيدوز عبر SendGrid قبل redirectDomain</span></li>
+  <li><span class="from">SendGrid</span> <span class="arrow">→</span> <span class="to">Activity</span> <span class="what">كيتسجل click مع email ديال مولاه</span></li>
+</ol>
 
 <h2>3 · الـ send(): كيتصيفط لـ SendGrid</h2>
 <pre dir="ltr"><code>async send() {
@@ -57,6 +67,13 @@
   return response;
 }</code></pre>
 <p>الـ <code>toJSON()</code> طريقة ديال base class كيحوّل كلشي لـ JSON، و <code>emptyRequest</code> + <code>API(request)</code> هي الطريقة ديال SendGrid باش تصيفط الـ request.<span class="cite"><a href="#n10">[10]</a></span> الـ <code>send()</code> <strong>async</strong> — يعني خاصك <code>await</code> عليها.<span class="cite"><a href="#n10">[10]</a></span></p>
+<ol class="steps">
+  <li><b>new Mailer(...)</b>الـ route handler كيعطيها <code>{ subject, recipients }</code> و HTML من <code>surveyTemplate(survey)</code>.</li>
+  <li><b>constructor</b> كيعمر <code>from_email</code>، <code>body</code>، الـ recipients، و <code>addClickTracking()</code>.</li>
+  <li><b>send()</b> <code>toJSON()</code> → <code>emptyRequest</code> → POST <code>/v3/mail/send</code>.</li>
+  <li><b>SendGrid</b> كتبديل كل link بـ tracking link وكتصيفط الـ email لـ inbox.</li>
+  <li><b>recipient</b> كيوصل الـ email، والـ click ديالو كيفتارك فـ Activity feed.</li>
+</ol>
 <p>فـ SendGrid dashboard، من <strong>Activity</strong> تقدر تشوف الـ events: processed, delivered, opened، وفوق كلشي <strong>click</strong> — يعني SendGrid عارف بالضبط شكون clicka على أي email.<span class="cite"><a href="#n14">[14]</a></span></p>
 
 <h2>4 · الـ polish ديال الـ route handler</h2>
@@ -74,6 +91,10 @@
   </div>
 </div>
 <p>الترتيب كيهم: خاص الـ email توصل قبل ما نسجلو الـ survey، وخصوم الـ <strong>credit واحد</strong> (<code>req.user.credits -= 1</code>) من بعد ما نعلمو بلي الـ send نجح، وفالأخير نرجّعو الـ user المحدّث بحال ما درنا مع Stripe.<span class="cite"><a href="#n13">[13]</a></span> وكلشي لفّف فـ <strong>try/catch</strong> — إلا وقع شي خطأ، <code>res.status(422)</code> (unprocessable entity) مع الـ error message.<span class="cite"><a href="#n13">[13]</a></span></p>
+<div class="callout analogy">
+  <span class="label">بأي مثال</span>
+  الترتيب بحال الحانوت: كتعطي السلعة للكليان عاد كتكتبها فالدفتر وكتاخد الثمن. إلا ما وصلاتش السلعة ما كتكتب والو وما كتنقص والو: صيفط عاد حفظ عاد نقص الـ credit.
+</div>
 <p>وأول ما نختبرو، كنلقاو مشكل: الـ links ديال yes/no كيرجعو لـ <code>localhost:3000</code> — ماشي مشكل فـ development، ولكن <strong>فـ email ما يمكنش تستعمل relative links</strong> (غادي يوصلو لـ domain ديال Gmail!). الحل: <code>redirectDomain</code> key فـ <code>config/dev.js</code> (<code>http://localhost:3000</code>) و <code>config/prod.js</code> (<code>process.env.REDIRECT_DOMAIN</code>)، والـ template كيستعملو بـ string interpolation، وكنصاوبو route <code>GET /api/surveys/thanks</code> كيرجع "Thanks for voting".<span class="cite"><a href="#n15">[15]</a></span></p>
 <p class="mono" style="font-size:0.8rem;color:var(--ink-faint)">المرجع: <a href="../reference/0005-survey-model-mailer.html">Reference 0005 — Survey Model &amp; Mailer Cheatsheet</a></p>
 

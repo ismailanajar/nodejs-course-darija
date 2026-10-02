@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 8 — Redux و auth reducer: أول state ديالنا</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 8 · Course sections 07</p>
+  <h1>Redux و auth reducer: أول state ديالنا</h1>
+  <p class="dek">الـ client واجد ودابا خاصو memory: نصاوبو Redux store، نربطو الـ Provider، ونخرّجو أول reducer حقيقي — <code>authReducer</code> اللي كيقرر واش الـ user مسجّل.</p>
+  <p class="meta">~12 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تقدر تربط Redux من الصفر فـ React app: <strong><code>index.js</code> = store + Provider</strong>، <strong><code>reducers/index.js</code> = <code>combineReducers</code></strong>، و <strong><code>authReducer</code></strong> اللي كيحفظ حالة تسجيل الدخول — وهي أول slice ديال state فهاد المشروع كامل.
+</div>
+
+<h2>1 · قبل Redux: refactoring و تهيئة الـ client</h2>
+<p>القسم بدا صغيرة: <strong>async/await</strong> — syntax ديال 2017 باش نكتبو asynchronous code بشكل أنظف من الـ callbacks.<span class="cite"><a href="#n1">[1]</a></span> وأول استعمال عندنا كان تصفيات الـ promises ديال Google strategy callback فـ <code>services/passport.js</code> (البحث على user، وإلا ما لقيناش نصاوبوه) من callbacks لـ <code>await</code>.<span class="cite"><a href="#n2">[2]</a></span></p>
+<p>من بعد تصوّرنا: diagram فيه <strong>green boxes = backend</strong> و <strong>blue boxes = frontend</strong> — الـ server setup والأوثرنتيكشن خلاص تهدات، ودابا pivot كامل للـ client setup: React، React Router، Redux، و هدف وحدو: <strong>نعرفو واش الـ user authenticated أصلا</strong>. نصيحة ديال الكورس: خدّم فجيهة وحدة (backend ولا frontend) فنفس الوقت — وإلا كتجمع بيناتهم، الطريق المباشرة للمشروع spaghetti code.<span class="cite"><a href="#n3">[3]</a></span></p>
+<p>التهيئة العملية: صافينا كامل boilerplate اللي صاوبو لنا <code>create-react-app</code> فـ <code>src</code> — ولكن <strong>ما نمسحوش <code>registerServiceWorker.js</code></strong>، و كذالك <strong><code>setupProxy.js</code> ما تمحاش</strong> (اللي صاوبناه فالدرس الفات).<span class="cite"><a href="#n4">[4]</a></span><span class="cite"><a href="#n5">[5]</a></span></p>
+<pre dir="ltr"><code>src/
+  index.js          # CRA كيعيّنو كـ root file (منعرّفش تبدلو) — Redux/data setup
+  reducers/         # غادي نصاوبوه دابا
+  components/
+    App.js          # component = حرف كبير — view layer / router
+  registerServiceWorker.js   # ما تمحاش
+  setupProxy.js              # ما تمحاش</code></pre>
+<p>و من بعد خلقنا <code>components/App.js</code> — حرف <strong>A كبير</strong> حيت كيexport component، أما الملفات اللي كيخرجولك غير functions فحرف صغير (بحال <code>index.js</code>).<span class="cite"><a href="#n4">[4]</a></span></p>
+
+<h2>2 · Redux store + Provider فـ <code>index.js</code></h2>
+<p>التقسيم عندنا واضح: <code>src/index.js</code> = <strong>Redux setup</strong> (الداتا)، و <code>App.js</code> = <strong>React Router setup</strong> (الـ view layer).<span class="cite"><a href="#n6">[6]</a></span> وثبّتنا <code>react-redux</code> — هي المكتبة اللي كتخلي Redux والـ React يخدمو مع بعضياتهم.<span class="cite"><a href="#n6">[6]</a></span></p>
+<p>الخطة ديال الـ state عندنا: <strong> reducers جوج</strong> — واحد <code>auth</code> (واش الـ user مسجّل؟) و واحد <code>surveys</code> (ليست ديال surveys اللي صاوبهم) — الـ surveys غادي يجي من بعد، ملي نكملو الـ backend ديالهم.<span class="cite"><a href="#n6">[6]</a></span></p>
+<p>مراجعة سريعة ديال الـ flow: component كينادي action creator &rarr; كيرجع action &rarr; الـ action كيتصاوب لكل reducers &rarr; <code>combineReducers</code> كيحدث state فـ store &rarr; الـ state الجديد كيرجع للـ components وكيسبّب re-render.<span class="cite"><a href="#n6">[6]</a></span></p>
+<p>و التطبيق فـ <code>index.js</code>: صاوب الـ store، ومن بعد حط <strong><code>&lt;Provider&gt;</code></strong> — component جا من <code>react-redux</code>، وهو الـ "glue" اللي بين الجيهتين: كيلبّس <code>App</code> وكيدوز ليه الـ store.<span class="cite"><a href="#n6">[6]</a></span></p>
+<pre dir="ltr"><code>&lt;Provider store={store}&gt;
+  &lt;App /&gt;
+&lt;/Provider&gt;</code></pre>
+
+<h2>3 · auth reducer + <code>combineReducers</code></h2>
+<p>نصاوبو <code>src/reducers/</code> وفيها جوج ملفات:<span class="cite"><a href="#n7">[7]</a></span></p>
+<ul>
+  <li><code>authReducer.js</code> — حرف <strong>a صغير</strong> حيت الملف كيexport <strong>function</strong> ماشي component.<span class="cite"><a href="#n7">[7]</a></span></li>
+  <li><code>index.js</code> — التسمية convention: باش <code>import reducers from './reducers'</code> يلقى الملف <code>index.js</code> اللي داخل المجلد تلقائيا.<span class="cite"><a href="#n7">[7]</a></span></li>
+</ul>
+<p>الـ reducer نفسو: function كتاخد <code>state</code> و <code>action</code>، وكتسوّي <code>switch</code> على <code>action.type</code> — دابا ما كايناش types، غير الـ <code>default</code> case اللي كيرجّع <code>state</code> بلا تبديل. وحنا الـ state كيبدا <code>undefined</code>، خاصك تعطيه <strong>initial value</strong> — الكورس بدا بـ object خاوي (وقال بلي غالبا غادي يتبدل من بعد).<span class="cite"><a href="#n7">[7]</a></span></p>
+<pre dir="ltr"><code>// src/reducers/authReducer.js
+export default function (state = {}, action) {
+  switch (action.type) {
+    // case FETCH_USER: ...
+    default:
+      return state;
+  }
+}
+
+// src/reducers/index.js
+import { combineReducers } from 'redux';
+import authReducer from './authReducer';
+
+export default combineReducers({ auth: authReducer });</code></pre>
+<p>القاعدة الذهبية هنا: <strong>الـ keys اللي تعطيهم لـ <code>combineReducers</code> هما الـ keys اللي غادي يخرجو فـ state object</strong> — علّاش سميناه <code>auth</code> حيت <code>state.auth</code> هو اللي غادي يكون.<span class="cite"><a href="#n8">[8]</a></span> وآخر خطوة: <code>import reducers from './reducers'</code> فـ <code>src/index.js</code> وعطيهم كأول argument ديال <code>createStore</code>.<span class="cite"><a href="#n8">[8]</a></span></p>
+
+<h2>4 · علاش auth state مهم</h2>
+<p>واش مستاهل نهدرو على reducer صغير بحال هادا؟ الجواب: حيت <strong>أول حاجة كتبان للuser هي الـ header</strong>، ومحتواه كيتبدّل حسب الـ auth: ملي ما مسجّلش — زر sign in with Google؛ ملي مسجّل — كيتحيد ويبان بدلو logout و أزرار الـ credits.<span class="cite"><a href="#n9">[9]</a></span></p>
+<p>و زيادة على الـ header: <strong>الـ routes</strong> كيتصرفو بشكل مختلف. الـ header كيبان دائما فكل بلاصة؛ الـ landing page (التسويقية) خاصها تشاف بلا تسجيل — عادي؛ أما الـ dashboard (ليست ديال surveys) و <code>/surveys/new</code> (الـ form) ف <strong>خاصهم login</strong> وماشي غير نقاش.<span class="cite"><a href="#n9">[9]</a></span></p>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">auth state<small>null / user / false</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">header content<small>sign in ولا logout</small></div>
+    <div class="flow-arrow">+</div>
+    <div class="flow-node">routes<small>public ولا protected</small></div>
+  </div>
+</div>
+<p>هادي هي خطة الدروس الجاية: نصاوبو الـ components، نربطوهم بـ React Router، ومن بعد نجيبو الـ data ديال الـ user للـ client.<span class="cite"><a href="#n9">[9]</a></span></p>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> شنو المهمة ديال الـ <code>authReducer</code>؟</p>
+  <button class="opt" data-correct>يقرر واش الـ user مسجّل ولا لا</button>
+  <button class="opt">كيصاوب كامل الـ survey form من عندو</button>
+  <button class="opt">كيصاوب كامل الـ surveys فـ MongoDB ديالو</button>
+  <button class="opt">كيتحكم فـ كامل routing ديال React Router</button>
+  <p class="explain">الـ auth reducer مسؤول غير على سؤال واحد: واش الـ user حاليا logged in؟ — والقيم اللي كيرجع منهم غادي تستعملها الـ header والـ routes باش يقررو شنو يورّيو.<span class="cite"><a href="#n9">[9]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> مراجعة: من الدرس 1.1، ملي الـ React بغا data ديال الـ surveys، مع شكون كيتكلم؟</p>
+  <button class="opt">كيمشي مباشرة مع MongoDB حيت أقرب</button>
+  <button class="opt">كيمشي لـ Express API وكيتسنى غير</button>
+  <button class="opt">كيمشي لـ Google OAuth باش ياخد</button>
+  <button class="opt" data-correct>كيمشي للـ Express API وهو وسيط</button>
+  <p class="explain">Law #1: الـ React عمرو ما كيتكلم مع MongoDB مباشرة — React &rarr; Express API &rarr; MongoDB. وحتى الـ auth state اللي دابا نبنيو، غادي يجي من نفس الطريق عبر API call.</p>
+
+  <p class="quiz-q"><span class="num">3.</span> فـ <code>combineReducers({ auth: authReducer })</code>، شنو كيعني الـ key <code>auth</code>؟</p>
+  <button class="opt">اسم كامل الملف اللي فيه الـ reducer</button>
+  <button class="opt" data-correct>الـ key ديال state اللي غادي يخرج</button>
+  <button class="opt">رقم كامل الـ action اللي غادي يتسجل</button>
+  <button class="opt">اسم كامل الـ user اللي مسجّل فالتطبيق</button>
+  <p class="explain">القاعدة: الـ keys اللي تعطيهم لـ <code>combineReducers</code> هما بالضبط الـ keys اللي غادي يتسجلو فـ state object — يعني غادي تلاقي القيمة ديال هاد الـ reducer فـ <code>state.auth</code>.<span class="cite"><a href="#n8">[8]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> علاش الـ header كيحتاج auth state ديال Redux؟</p>
+  <button class="opt">باش نقدر نصفّي CSS ديال الـ navbar</button>
+  <button class="opt">باش نقدرو نزادو route جديدة لكل user</button>
+  <button class="opt" data-correct>باش محتواه يتبدل حسب حالة تسجيل الدخول</button>
+  <button class="opt">باش نقدرو نبني الـ form ديال survey</button>
+  <p class="explain">محتوى الـ header كيتبدّل: sign in with Google ملي الـ user ما مسجّلش، و logout + أزرار credits ملي يكون مسجّل — وهاد التبديل كيتبنى على نفس الـ state اللي كيصنعو <code>authReducer</code>.<span class="cite"><a href="#n9">[9]</a></span></p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0003-client-redux-architecture.html">المرجع 0003</a><span>·</span>
+    <a href="0007-client-server-split.html">الدرس السابق 7</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>9 — React Router و Header: التصفح و current user</strong> (القسم 07، عملي).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>07. Developing the Client Side/01. AsyncAwait Syntax.vtt</code> — async/await syntax as a 2017 addition for writing asynchronous code</li>
+  <li id="n2"><code>07. Developing the Client Side/02. Refactoring with AsyncAwait.vtt</code> — refactor the Google strategy callback promises (find or create the user) in services/passport.js to async/await</li>
+  <li id="n3"><code>07. Developing the Client Side/04. Front End Tech.vtt</code> — diagram with green boxes for backend and blue boxes for frontend, pivot to client setup and deciding whether the user is authenticated, work on one side at a time to avoid spaghetti code</li>
+  <li id="n4"><code>07. Developing the Client Side/07. Installing Root Modules.vtt</code> — deleted the SRC boilerplate except registerServiceWorker, create-react-app enforces src/index.js as the root file, components/App.js with a capital letter because it exports a component, App returns "Hi there"</li>
+  <li id="n5"><code>07. Developing the Client Side/03. Important Note About Proxy.html</code> — do not delete the setupProxy.js file while clearing out the src directory</li>
+  <li id="n6"><code>07. Developing the Client Side/10. Redux Review and Setup.vtt</code> — index.js houses the Redux setup and App.js will hold React Router, two reducers planned (auth and surveys), Redux flow review, create the store and render the Provider tag as the glue between React and Redux</li>
+  <li id="n7"><code>07. Developing the Client Side/11. The Auth Reducer.vtt</code> — reducers folder, authReducer.js with lowercase a because it exports a function, reducers/index.js so importing the directory resolves it, switch on action type with default returning state, initial state is an empty object likely to change later</li>
+  <li id="n8"><code>07. Developing the Client Side/12. Finishing Reducer Setup.vtt</code> — combineReducers keys represent the keys inside the state object, key named auth, import reducers into src/index.js and pass it as the first argument to createStore</li>
+  <li id="n9"><code>07. Developing the Client Side/13. Why We Care About Auth.vtt</code> — the auth reducer decides logged in or not, header content changes from sign in to log out and credits, header always visible while dashboard and survey new require a logged-in user, wiring up React Router is next</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

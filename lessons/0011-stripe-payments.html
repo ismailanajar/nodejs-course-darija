@@ -24,6 +24,15 @@
 <h2>1 · الـ flow كامل: من الزر حتى للـ credit</h2>
 <p>الكورس كيبدا من الـ UI: <strong>Payments component</strong> داخل الـ header، ملي الـ user يكون مسجّل، وكتبان ليه وصلة "Add credits". الكليك كيحل form ديال <strong>React Stripe Checkout</strong> اللي كتسجل الـ card.<span class="cite"><a href="#n1">[1]</a></span><span class="cite"><a href="#n2">[2]</a></span></p>
 <p>المهم بزاف: الـ form كتصاوب عند <strong>Stripe</strong> نفسها (iframe ديالهم)، وملي كتسالا، Stripe كترجع ليك <strong>token</strong> — يعني معرّف مؤقت ديال الـ card، ماشي numbers نفسها. <strong>السيرفر ديالك عمرو ما كيشوف numbers ديال card.</strong><span class="cite"><a href="#n1">[1]</a></span></p>
+<div class="callout analogy">
+  <span class="label">بأي مثال</span>
+  الـ <code>token</code> بحال ورقة الأمانات فالمحطة: ملي كتحط الشنطة كيعطيوك ورقة صغيرة، والورقة بوحدها ما فيها حتى حاجة غالية. نتا كتصيفط غير الورقة للسيرفر، والسيرفر كيمشي بيها لـ Stripe باش يصاوب <code>charge</code> — الأرقام الحقيقية ديال card عمرو ما شافها.
+</div>
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  باغي تصاوب form ديالك وتصيفط numbers ديال الـ card نيشان لـ API ديالك؟ غلط كبيرة: الـ numbers كتمشي فأي سيرفر خارج Stripe، ودخلتي فمسؤولية ديال <strong>PCI compliance</strong> كاملة. علّاش كاين token أصلا؟ باش Numbers تبقى غير عند Stripe — صيفط غير <code>token.id</code> لـ <code>stripe.charges.create</code>.
+</div>
+
 <div class="flow">
   <div class="flow-row">
     <div class="flow-node">Payments component<small>زر "Add credits"</small></div>
@@ -47,6 +56,10 @@
 <pre dir="ltr"><code>const stripe = require('stripe')(keys.stripeSecretKey);   // غير فـ server
 // client: publishable key فقط — للـ Checkout form</code></pre>
 <p>الـ <code>stripe</code> npm module هو اللي كياخد الـ token وكيمشي بيه لـ Stripe API باش يصاوب الـ charge.<span class="cite"><a href="#n5">[5]</a></span></p>
+<div class="compare">
+  <div class="col-good"><span class="tag">publishable key</span><code>pk_...</code> كتمشي للـ client مع <code>Checkout</code> باش تبين form ديال Stripe. إلا تسربات، الخطورة محدودة حيت ما كتقدرش تسحب الفلوس بوحدها.</div>
+  <div class="col-bad"><span class="tag">secret key</span>كتبقى غير فالسيرفر مع <code>stripe.charges.create</code>. إلا خرجات للـ client، أي واحد يقدر يصاوب charges باسمك.</div>
+</div>
 
 <h2>3 · السيرفر: charge ثم credits</h2>
 <p>الـ route كيتسجل فـ ملف جديد <code>billingRoutes</code> (كيتصاوب كـ function كتاخد الـ app، ومن بعد كيتشعل من <code>index.js</code>) على <code>POST /api/stripe</code>.<span class="cite"><a href="#n4">[4]</a></span><span class="cite"><a href="#n5">[5]</a></span> باش توصل لـ <code>req.body</code> (فين كاين الـ token)، خاصك <strong>body-parser</strong>: <code>npm install --save body-parser</code> و <code>app.use(bodyParser.json())</code>.<span class="cite"><a href="#n6">[6]</a></span></p>
@@ -59,6 +72,16 @@
 <p>الـ <code>charges.create</code> كيرجع <strong>promise</strong> — نتا كتكتب <code>async</code> على الـ request handler و <code>await</code> قدام الـ call، ومن بعد كتوصّل لـ object ديال الـ charge (ID ديالو كيبدا بـ <code>ch_</code>، الـ currency، الـ amount...).<span class="cite"><a href="#n7">[7]</a></span></p>
 <p>من بعد، الـ user model عندو property جديدة: <code>credits</code> من نوع Number بـ <code>default: 0</code> — يعني كلشي كيبدا بلا والو، وخاصو يخلّص باش يزيد. بعد ما الـ charge ينجح: <code>req.user.credits += 5</code>، ومن بعد <code>await req.user.save()</code> (بلا save، التبديل كيبقى غير فـ الذاكرة)، وفالأخير <code>res.send(user)</code> بـ النسخة الجديدة.<span class="cite"><a href="#n8">[8]</a></span></p>
 <p>علاش كترجعي الـ user نفسه للـ client؟ حيت نفس النمط اللي كيخدم مع الـ header: <code>/api/current_user</code> كيرجع الـ user كامل مع <code>credits</code>، وهكذا حتى الـ refresh كيبان فيه الرصيد صحيح.<span class="cite"><a href="#n10">[10]</a></span></p>
+
+<ol class="seq">
+  <li><span class="from">Client</span> <span class="arrow">→</span> <span class="to">سيرفرنا</span> <span class="what">POST /api/stripe و الـ token داخل JSON body</span></li>
+  <li><span class="from">body-parser</span> <span class="arrow">→</span> <span class="to">handler</span> <span class="what">req.body ملّي بـ id ديال الـ token</span></li>
+  <li><span class="from">requireLogin</span> <span class="arrow">→</span> <span class="to">handler</span> <span class="what">الـ user مسجّل؟ نادي next()</span></li>
+  <li><span class="from">سيرفرنا</span> <span class="arrow">→</span> <span class="to">Stripe</span> <span class="what">stripe.charges.create بـ 500 cents</span></li>
+  <li><span class="from">Stripe</span> <span class="arrow">→</span> <span class="to">سيرفرنا</span> <span class="what">charge object (ID كيبدا بـ ch_)</span></li>
+  <li><span class="from">handler</span> <span class="arrow">→</span> <span class="to">MongoDB</span> <span class="what">credits += 5 ومن بعد save()</span></li>
+  <li><span class="from">سيرفرنا</span> <span class="arrow">→</span> <span class="to">Client</span> <span class="what">res.send(user) — الـ header كيupdate الرصيد</span></li>
+</ol>
 
 <h2>4 · الحماية: requireLogin كـ route middleware</h2>
 <p>أول نسخة ديال الحماية كانت <code>if (!req.user) return res.status(401)...</code> داخل الـ handler — كتخدم، ولكن كتعاود من كل مرة. الحل: ملف جديد <code>middleware/requireLogin.js</code> كيصدّر arrow function بثلاث arguments: <code>req, res, next</code>.<span class="cite"><a href="#n9">[9]</a></span></p>

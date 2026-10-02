@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 13 — Mongoose ديال survey: subdocs و relationship fields</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 13 · الكورس section 10</p>
+  <h1>Mongoose ديال survey: subdocs و relationship fields</h1>
+  <p class="dek">الدفع والـ deploy سالاو — دابا نصاوبو الـ heart ديال المنتوج: الـ schema ديال الـ survey، ونتعلّمو فين نستعملو <strong>subdocument</strong> وفين <strong>relationship field</strong>.</p>
+  <p class="meta">~13 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تصاوب <strong>Survey schema</strong> صحيحة: recipients كـ <strong>subdocuments</strong> باش ما يوقعش التصويت المكرر، <code>_user</code> كـ <strong>relationship field</strong> باش تعرف شكون مالك، وroute handler محطّب بـ <strong>requireLogin</strong> + <strong>requireCredits</strong>. هادي هي الـ data modeling اللي كتفرق بين prototype و production.
+</div>
+
+<h2>1 · الـ route الأول: POST /api/surveys</h2>
+<p>الكورس كيقسم الـ survey feature لـ3 routes (إنشاء، جلب القائمة...) ونصيحة هي: <strong>عزل route وحدة وجرّبها قبل ما تكمل البقية</strong>، ومن بعد رجع للـ front end.<span class="cite"><a href="#n2">[2]</a></span> الـ route ديال الإنشاء كيمسّ الـ express route handler، و React front end، و MongoDB — نفس الـ request وحدة.<span class="cite"><a href="#n3">[3]</a></span></p>
+<p>وأول مشكل كيتصطدم بيه: <strong>فين نخزّنو feedback</strong> (شكون قال yes وشكون قال no)؟ وإذا خزّناها مكررة، نفس الـ user يقدر يصوّت بزاف ديال المرات.<span class="cite"><a href="#n3">[3]</a></span> الحل هو الـ <strong>subdocument collection</strong>.</p>
+
+<h2>2 · علاش recipients داخل الـ survey: subdocument collection</h2>
+<p>الـ recipients كيسكنو كـ list داخل الـ survey نفسو، وكل واحد عندو <code>email</code> (String) و <code>responded</code> (Boolean) بـ <code>default: false</code> — يعني حتى واحد ما يصوّت قبل ما يclicki.<span class="cite"><a href="#n4">[4]</a></span><span class="cite"><a href="#n5">[5]</a></span></p>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">surveys collection<small>document = survey واحد</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">recipients<small>subdoc collection</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">{ email, responded }<small>subdocument وحدة</small></div>
+  </div>
+</div>
+<p>وقاعدة الاختيار هي: <strong>subdocuments كنستعملوهم ملي بغاو association واضح وstrong بين جوج records</strong>. الـ recipient ماعندو حتى معنى بلا الـ survey ديالو — يعني ملكية واضحة (ownership).<span class="cite"><a href="#n4">[4]</a></span></p>
+<p>ولكن علاش users ما عندهمش list ديال surveys كـ subdocuments؟ حيت عند MongoDB <strong>limit ديال 4MB لكل document</strong>. بـ20 bytes للمتوسط ديال email، وحدة survey كتتّسع لـ تقريباً <strong>200,000 emails</strong> — مقبول. ولكن إلا حطينا surveys كاملة داخل user، نفس الـ user كيغلق عندو 200,000 emails ديال surveys كاملين... والمشكل كيولي شي super user كيصرف فلوس وما يقدّرش يزيد.<span class="cite"><a href="#n4">[4]</a></span></p>
+<pre dir="ltr"><code>// models/recipient.js
+new Schema({ email: String, responded: { type: Boolean, default: false } });</code></pre>
+
+<h2>3 · relationship field: شكون مالك الـ survey؟</h2>
+<p>باش نعرفو أي user صاوب أي survey، كنزيدو <code>_user</code> على الـ survey schema:<span class="cite"><a href="#n6">[6]</a></span></p>
+<pre dir="ltr"><code>_user: { type: Schema.Types.ObjectId, ref: 'user' }  // ref بـ lowercase</code></pre>
+<ul>
+  <li><code>Schema.Types.ObjectId</code> = الـ ID ديال الـ user owner. الـ <code>ref: 'user'</code> كيقول لـ Mongoose بلي هاد الـ reference كيتبع الـ <strong>users collection</strong>.<span class="cite"><a href="#n6">[6]</a></span></li>
+  <li>الـ <strong>underscore</strong> ماشي إجباري — غير convention باش أي حد يشوفو يفهم بلي هادا <strong>reference field</strong> ماشي data عادية.<span class="cite"><a href="#n6">[6]</a></span></li>
+  <li>وزدنا <code>dateSent</code> و <code>lastResponded</code> بـ <code>Date</code> — ماشي ضروريين للـ app، ولكن كيعطيو لـ owner فكرة واش الـ survey مازال active.<span class="cite"><a href="#n6">[6]</a></span></li>
+</ul>
+<p>يعني الفرق بجوج سطر: <strong>subdocument</strong> = ملكية داخلية (recipients داخل survey)، <strong>relationship field</strong> = رابط بين جوج collections (survey &rarr; user).</p>
+
+<h2>4 · الحماية والتنفيذ: requireLogin ثم requireCredits</h2>
+<p>الـ <code>Survey</code> model خاصو يتطلب من <code>index.js</code> (و <code>Recipient</code> كيتطلب من <code>survey.js</code> راسو)، ومن بعد كنصاوبو ملف جديد <code>routes/surveyRoutes.js</code> فيه <code>app.post('/api/surveys', ...)</code>.<span class="cite"><a href="#n7">[7]</a></span></p>
+<p>قبل الـ handler، كنزيدو <strong>requireCredits</strong> — ملف جديد كيتنسخ من <code>requireLogin</code> ويتبدّلو فيه غير الـ if statement: <code>req.user.credits &lt; 1</code> كيرجع <strong>403</strong> مع رسالة "not enough credits" (الـ <strong>402 payment required</strong> موجود فـ spec ولكن <em>reserved for future use</em>).<span class="cite"><a href="#n8">[8]</a></span> علاش middleware ماشي داخل الـ handler؟ حيت ممكن نحتاجو نفس الفحص فـ routes أخرى فالمستقبل.<span class="cite"><a href="#n8">[8]</a></span></p>
+<pre dir="ltr"><code>app.post('/api/surveys', requireLogin, requireCredits, handler);
+// 1) مسجّل؟  2) عندو credit؟  3) صاوب الـ survey</code></pre>
+<p><strong>الترتيب مهم</strong>: خاص الـ user يكون مسجّل قبل ما نطلبو منو credits، والجوج قبل ما نديرو أي logic.<span class="cite"><a href="#n8">[8]</a></span> من بعد، فالـ handler: <code>const survey = new Survey({ title, subject, body, recipients: [...] })</code> — Mongoose كيصاوب الـ subdocuments راسو من غير ما نعرفوهم.<span class="cite"><a href="#n10">[10]</a></span></p>
+<pre dir="ltr"><code>recipients: emails.split(',').map(email =&gt; ({ email: email.trim() }))  // trim قبل</code></pre>
+<p class="mono" style="font-size:0.8rem;color:var(--ink-faint)">المرجع: <a href="../reference/0005-survey-model-mailer.html">Reference 0005 — Survey Model &amp; Mailer Cheatsheet</a></p>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> علاش حطينا recipients كـ subdocument collection داخل survey؟</p>
+  <button class="opt">باش ننقصو عدد الـ collections ديالنا</button>
+  <button class="opt" data-correct>باش كل recipient يبقى مملوك ليه</button>
+  <button class="opt">باش الـ MongoDB يخلص أقل fees</button>
+  <button class="opt">باش نزيدو speed ديال الـ queries</button>
+  <p class="explain">الـ subdocuments كنستعملوهم ملي بغاو ownership واضح: الـ recipient ماعندو حتى معنى بلا الـ survey ديالو، وهكذا كل تصويت مسجّل مع الـ survey ديالو.<span class="cite"><a href="#n4">[4]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> شنو كيوقع إلا user عندو zero credits و بغى يصاوب survey؟</p>
+  <button class="opt">الـ client كيstop الـ request من عندو</button>
+  <button class="opt">السيرفر كيصاوب survey كامل بلا credit أصلا</button>
+  <button class="opt" data-correct>requireCredits كيرجع 403 قبل الـ handler ديالنا</button>
+  <button class="opt">requireLogin هو اللي كيرجع 401 هنا بوحده</button>
+  <p class="explain">الـ middleware كيتسلّم الـ request قبل الـ handler: <code>req.user.credits &lt; 1</code> كيرجع 403 (402 محجوز فالـ spec) وكيرفض الطلب من الأصل.<span class="cite"><a href="#n8">[8]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> مراجعة: من درس الـ production routing، شنو كيدير catch-all <code>app.get('*')</code>؟</p>
+  <button class="opt" data-correct>كيرجع index.html باش كامل React router يكمل</button>
+  <button class="opt">كيرجع 404 كامل إلا ما لقاش الملف</button>
+  <button class="opt">كيعطّل كامل الـ API routes ديالنا نيشان</button>
+  <button class="opt">كيصاوب bundle جديد كامل ديال الـ React</button>
+  <p class="explain">الـ catch-all هو آخر حل: إلا ما لقاش route handler ولا ملف داخل <code>client/build</code>، كيرجع <code>index.html</code> وكيسلّم الـ path للـ client-side router.<span class="cite"><a href="#n2">[2]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> شنو الفرق بين <code>_user</code> و recipients فـ survey schema؟</p>
+  <button class="opt">_user كيخزن emails و recipients كيخزن ids</button>
+  <button class="opt">_user هو subdocument و recipients هوما reference</button>
+  <button class="opt">_user هو ObjectId كامل و recipients strings</button>
+  <button class="opt" data-correct>_user هو reference و recipients هوما subdocuments</button>
+  <p class="explain"><code>_user</code> هو <code>ObjectId</code> بـ <code>ref: 'user'</code> بين جوج collections، أما recipients فداخلية فـ الـ survey كـ subdocuments.<span class="cite"><a href="#n6">[6]</a></span></p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0005-survey-model-mailer.html">المرجع 0005</a><span>·</span>
+    <a href="../lessons/0012-production-routing.html">الدرس السابق 12</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>14 — الـ mailer: SendGrid و templates ديال survey</strong> (كيفاش نفس الـ survey يتصيفط كـ email).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>10. Mongoose for Survey Creation/01. Survey Overview.vtt</code> (00:00–01:03) — billing/auth/deployment done, survey feature begins</li>
+  <li id="n2"><code>10. Mongoose for Survey Creation/02. Server Routes.vtt</code> (00:04–01:01) — three routes, isolate and test one route at a time</li>
+  <li id="n3"><code>10. Mongoose for Survey Creation/03. Survey Model.vtt</code> (00:08–01:01) + <code>04. Model Deficiencies.vtt</code> (00:05–01:00) — route handler + React + Mongo, where to store feedback</li>
+  <li id="n4"><code>10. Mongoose for Survey Creation/05. Limitations of Subdocument Collections.vtt</code> (00:00–07:51) — ownership association, 4MB document limit, ~200,000 emails</li>
+  <li id="n5"><code>10. Mongoose for Survey Creation/06. Setting up SubDocs.vtt</code> (00:17–01:14) — models/recipient.js, email String, responded default false</li>
+  <li id="n6"><code>10. Mongoose for Survey Creation/07. Relationship Fields.vtt</code> (00:00–05:01) — _user ObjectId ref user, underscore convention, dateSent and lastResponded</li>
+  <li id="n7"><code>10. Mongoose for Survey Creation/08. Survey Creation Route Handler.vtt</code> (00:13–01:06) — Survey required in index.js, new surveyRoutes file</li>
+  <li id="n8"><code>10. Mongoose for Survey Creation/09. Verifying Minimum Credits.vtt</code> (00:00–06:24) + <code>10. Creating Surveys.vtt</code> (00:04–01:09) — requireCredits cloned from requireLogin, credits &lt; 1 returns 403, middleware order</li>
+  <li id="n9"><code>10. Mongoose for Survey Creation/11. Creating Subdoc Collections.vtt</code> (00:16–01:12) — Mongoose creates subdocuments automatically from the plain array</li>
+  <li id="n10"><code>10. Mongoose for Survey Creation/11. Creating Subdoc Collections.vtt</code> + <code>12. Oops!  A Little Tweak.html</code> — recipients: [{ email }] payload, email.trim() before mapping</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

@@ -18,7 +18,7 @@
 
 <div class="callout">
   <span class="label">Win ديال هاد الدرس</span>
-  غادي تصاوب server جديد من الصفر (<code>npm init</code> &rarr; install Express &rarr; أول <code>app.get</code>) وتوصل بيه من browser، وغادي تقدر تشرح لـclient شكون كيسمع للـ traffic وشكون كيقرر كيفاش يجاوب — Node ولا Express.
+  غادي تصاوب server جديد من الصفر (<code>npm init</code> → install Express → أول <code>app.get</code>) وتوصل بيه من browser، وغادي تقدر تشرح لـclient شكون كيسمع للـ traffic وشكون كيقرر كيفاش يجاوب — Node ولا Express.
 </div>
 
 <h2>0 · رجع سريع</h2>
@@ -41,23 +41,15 @@ npm install --save express</code></pre>
   <li><strong>Node</strong> = JavaScript runtime كيexecute الكود <em>خارج</em> الـ browser، وهو اللي كيسمع الـ HTTP traffic على <strong>port</strong> واحد (الـ port كيشبه لباب دخل منو الـ requests).</li>
   <li><strong>Express</strong> = ماشي runtime بوحدو — هادي <strong>library ديال helpers</strong> فوق Node باش كتابة السيرفرات تبقى ساهلة. كلشي اللي كيدير Express، تقدر تصاوبو بـ Node عادي.</li>
 </ul>
-<div class="flow">
-  <div class="flow-row">
-    <div class="flow-node">HTTP request<small>من browser</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">Node<small>كيسمع على port</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">Express<small>كيبان شي route handler</small></div>
-  </div>
-  <div class="flow-row">
-    <div class="flow-node">route handler<small>منطق + res</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">Node<small>كيرجع response</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">Browser<small>النتيجة</small></div>
-  </div>
-</div>
-<p>يعني: Node هو اللي كيتحمّل الـ traffic الحقيقي، Express هو اللي كيقول "هاد الـ request هادي خاصها هاد الـ handler".<span class="cite"><a href="#n3">[3]</a></span></p>
+<ol class="seq">
+  <li><span class="from">Browser</span> <span class="arrow">→</span> <span class="to">Node</span> <span class="what">GET /api/current_user</span></li>
+  <li><span class="from">Node</span> <span class="arrow">→</span> <span class="to">Express</span> <span class="what">req على port 5000</span></li>
+  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">route handler</span> <span class="what">app.get('/api/current_user')</span></li>
+  <li><span class="from">route handler</span> <span class="arrow">→</span> <span class="to">Node</span> <span class="what">res.send({ hi: 'there' })</span></li>
+  <li><span class="from">Node</span> <span class="arrow">→</span> <span class="to">Browser</span> <span class="what">200 + JSON ديال الجواب</span></li>
+</ol>
+<p class="mono">كيفاش تقرا هاد المخطط: كل سطر رسالة وحدة من Browser حتى يرجع الجواب — تبع الترتيب.</p>
+<p>الخلاصة: الـ Node هو اللي كيبقى سامع للـ traffic على الـ port، والـ Express غير كيختار شكون يجاوب بـ <code>app.get</code> المناسب.<span class="cite"><a href="#n3">[3]</a></span> علاش هادي مهمة ملي تخدم لـclient: حيت غادي تعرف فين تقلب ملي شي route ما كيجاوبش.</p>
 
 <h2>3 · أول route handler</h2>
 <p>فـ <code>server</code> directory، كنصاوبو <code>index.js</code> — الـ convention ديال startup file فـ Node projects.<span class="cite"><a href="#n4">[4]</a></span></p>
@@ -84,6 +76,7 @@ app.listen(5000);</code></pre>
   <li><b>index.js</b> كتب <code>require(express)</code>، وحد <code>app.get(...)</code>، ومن بعد <code>app.listen(5000)</code>.</li>
   <li><b>localhost:5000</b> كتحل فـ browser وكيجاوبك أول route handler.</li>
 </ol>
+<p class="mono">كيفاش تقرا هاد المخطط: دير الخطوات بالترتيب من الفوق للتحت حتى يخدم السيرفر.</p>
 <div class="callout pitfall">
   <span class="label">نتيجة كتجي غلط</span>
   من أول تشغيل ديال السيرفر، إلا كتبتي <code>import express from 'express'</code> بحال الـ React side، فـ terminal غادي تشوف <code>SyntaxError: Cannot use import statement outside a module</code>. الحل: فـ <code>index.js</code> ديال Node استعمل <code>require</code> — هادا هو نظام <strong>CommonJS</strong> اللي كيستعملو الـ backend.

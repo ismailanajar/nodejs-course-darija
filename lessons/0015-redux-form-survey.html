@@ -36,24 +36,16 @@
 <pre dir="ltr"><code>npm install redux-form --legacy-peer-deps   # مهم: بلا هاد الـ flag كيعطيك peer deps errors</code></pre>
 <p class="mono" style="font-size:0.8rem;color:var(--ink-faint)">ملاحظة الـ installation جات فملف HTML خاص بالدرس، والتوثيق ديال Redux Form (<code>redux-form.com</code>) موصى بيه بزاف.<span class="cite"><a href="#n5">[5]</a></span></p>
 <p>الاستعمال الأول هو جوج تاجات: <code>reduxForm({ form: 'surveyForm' })</code> اللي كيلبس الـ component، و<code>&lt;Field&gt;</code> اللي كيمثّل كل input. الـ <code>form: 'surveyForm'</code> هو اسم الـ slice اللي غادي يسكن فيه الـ values فـ Redux store.<span class="cite"><a href="#n6">[6]</a></span></p>
-<div class="flow">
-  <div class="flow-row">
-    <div class="flow-node"><code>reduxForm()</code><small>للسورس ديال form</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node"><code>&lt;Field&gt;</code><small>بسميات حقول</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">Redux store<small>state.form.surveyForm</small></div>
-  </div>
-</div>
 
 <h2>3 · من HTML field حتى custom component</h2>
-<p>الـ <code>Field</code> كتقدر تعطيه <code>component</code> prop ديال الـ component ديالك هي. Redux Form من بعد كيصيفط ليه جوج props: <code>input</code> (الـ props ديال input: name, value, onChange…) و <code>meta</code> (الـ حالة: touched, error…). يعني الـ component ديالك كيركّز غير على الشكل، والبيانات كيجيوه من البار.<span class="cite"><a href="#n7">[7]</a></span></p>
+<p>الفكرة بسيطة: الـ <code>Field</code> كتعطيه <code>component={SurveyField}</code> وهو كيتكلف بالربط. Redux Form كيصيفط لـ <code>SurveyField</code> جوج حوايج واجدين: <code>input</code> فيه <code>value</code> و <code>onChange</code> واجدين، و<code>meta</code> فيه <code>touched</code> و <code>error</code> باش توري الخطأ. يعني انت كتصاوب غير الشكل، والداتا كتوصلك بوحدها. علاش هادي مهمة ملي تخدم لـ client: حيت الـ client كيطلب form جديدة كل مرة، وبهاد الطريقة كتزيد حقل بسطر واحد بلا ما تعاود الـ wiring كامل.<span class="cite"><a href="#n7">[7]</a></span></p>
 <ol class="seq">
-  <li><span class="from">Field</span> <span class="arrow">→</span> <span class="to">SurveyField</span> <span class="what">كيصيفط input و meta و label</span></li>
-  <li><span class="from">SurveyField</span> <span class="arrow">→</span> <span class="to">input</span> <span class="what">كيرسم الخانة بـ value و onChange</span></li>
-  <li><span class="from">input</span> <span class="arrow">→</span> <span class="to">Redux store</span> <span class="what">كل حرفة كتسجل فـ state.form.surveyForm</span></li>
-  <li><span class="from">Redux store</span> <span class="arrow">→</span> <span class="to">Field</span> <span class="what">القيمة كترجع للعرض بلا handlers</span></li>
+  <li><span class="from">Field</span> <span class="arrow">→</span> <span class="to">SurveyField</span> <span class="what"><code>&lt;Field name="title" component={SurveyField}&gt;</code> كيصيفط <code>input</code> و <code>meta</code> و <code>label</code></span></li>
+  <li><span class="from">SurveyField</span> <span class="arrow">→</span> <span class="to">input</span> <span class="what">كيرسم <code>&lt;input&gt;</code> بـ <code>input.value</code> و <code>input.onChange</code></span></li>
+  <li><span class="from">input</span> <span class="arrow">→</span> <span class="to">Redux store</span> <span class="what">كل حرف كيتسجل فـ <code>state.form.surveyForm.values</code></span></li>
+  <li><span class="from">Redux store</span> <span class="arrow">→</span> <span class="to">Field</span> <span class="what">القيمة كترجع للعرض من <code>form: 'surveyForm'</code> بلا <code>onChange</code> يدوي</span></li>
 </ol>
+<p class="mono">كيفاش تقرا هاد المخطط: تبع الأرقام من الـ Field حتى ترجع ليه — كل سطر فيه شكون صيفط لشكون وشنو هو الـ prop اللي داز.</p>
 <p>ولكن بلا ما تكتب النص ديال label ميت فـ JSX، تعطيه <code>label</code> prop من برا، وهكذا كتقدر تستعمل نفس الـ <code>SurveyField</code> أربع مرات مع labels مختلفة.<span class="cite"><a href="#n8">[8]</a></span></p>
 <pre dir="ltr"><code>&lt;Field component={SurveyField} name="title" label="Survey Title" type="text" /&gt;</code></pre>
 
@@ -73,11 +65,12 @@ renderFields() {
 }</code></pre>
 <p>فقط لا تنسى الـ <code>key</code> (React كيخلصك بـ warning ديال list بلا <code>key</code>، و<code>name</code> هو الأنسب حيت unique بين الـ fields).<span class="cite"><a href="#n9">[9]</a></span> وهكذا زادت field جديد = سطر واحد فوق — لا JSX جديد لا نسخ ديال props.<span class="cite"><a href="#n9">[9]</a></span></p>
 <div class="stack">
-  <div class="stack-layer"><b>FIELDS array</b><span>سطر واحد لكل حقل: غير <code>label</code> و <code>name</code></span></div>
-  <div class="stack-layer"><b>_.map + Field</b><span>كتصاوب <code>Field</code> وحدة لكل عنصر بـ <code>key</code></span></div>
-  <div class="stack-layer"><b>SurveyField</b><span>الـ component ديال الشكل، نفسو كيتكرر 4 مرات</span></div>
-  <div class="stack-layer"><b>input / meta</b><span>Redux Form كيصيفطهم بلا ما تكتب handlers</span></div>
+  <div class="stack-layer"><b>FIELDS array</b><span><code>4</code> objects فـ <code>FIELDS</code> — كل واحد فيه غير <code>label</code> و <code>name</code> بحال <code>title</code></span></div>
+  <div class="stack-layer"><b>_.map + Field</b><span><code>_.map(FIELDS)</code> كتخرج <code>&lt;Field key={name} type="text"&gt;</code> لكل عنصر</span></div>
+  <div class="stack-layer"><b>SurveyField</b><span>نفس <code>SurveyField</code> كيتعاود <code>4</code> مرات مع <code>label</code> مختلف</span></div>
+  <div class="stack-layer"><b>input / meta</b><span><code>reduxForm({ form: 'surveyForm' })</code> كيصيفط <code>input</code> و <code>meta</code> بلا handlers</span></div>
 </div>
+<p class="mono">كيفاش تقرا هاد المخطط: قرا من الفوق للتحت — الـ config الفوق كتولد الـ Fields والتحت هو البيانات اللي كتوصل بوحدها.</p>
 <div class="callout pitfall">
   <span class="label">نتيجة كتجي غلط</span>
   درتي جوج fields بنفس الـ name ولا نسيتي الـ key: الـ values كيتخلطو والـ React كيعطي warning ديال list. الحل: كل عنصر فـ FIELDS عندو name وحيد ودوزو كـ key للـ Field.

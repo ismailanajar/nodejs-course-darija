@@ -51,6 +51,10 @@
 
 <h2>3 · query وحدة: <code>updateOne</code> + Mongo operators</h2>
 <p>الفكرة: بدل ما نجيبو و نسجلو، نستعملو <code>Survey.updateOne(criteria, update)</code> — الـ object الأول كيقول <strong>شكون</strong>، والتاني كيقول <strong>شنو يبدّل</strong>، والجوج كيتطبّقو من داخل Mongo بلا ما الـ survey يجي لعنّا أصلا.<span class="cite"><a href="#n4">[4]</a></span></p>
+<div class="compare">
+  <div class="col-bad"><span class="tag">find + save</span>الـ survey كامل و كل الـ recipients كيجيو للـ Node، كندورو عليهم بـloop، ومن بعد <code>save()</code> كيرجع يرسل نفس القائمة كاملة للـ DB.</div>
+  <div class="col-good"><span class="tag">updateOne + $inc</span>البحث و التسجيل كاملين من داخل Mongo: غير الـ survey و الـ recipient المعني كيتحرّكو، وما خرج حتى شي بيانات زايدة.</div>
+</div>
 <pre><code>Survey.updateOne(
   {
     _id: surveyId,
@@ -69,6 +73,10 @@
   <li><strong><code>_id</code> ماشي <code>id</code>:</strong> داخل استفسارات Mongo الخام خاصك <code>_id</code>؛ الـ <code>id</code> الحلوة هي ديال Mongoose اللي كتجلس فوق.<span class="cite"><a href="#n7">[7]</a></span></li>
   <li><strong><code>.exec()</code>:</strong> الـ query مكتتباش غير كتتركب — خاصك تبعدها للـ DB بـ<code>exec()</code>.<span class="cite"><a href="#n7">[7]</a></span></li>
 </ul>
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  إلا حيّديتي <code>responded: false</code> من الـ criteria (ولا رجعتي لـ<code>find + save</code> العمياء)، نفس الشخص يقدر يعاود clicka ويزيد نفس الـ vote مرة خرا — والعدّاد كيطلع مضلّل. الحماية هي <code>$elemMatch</code>: أول مرة كيتبدل <code>responded</code> لـ<code>true</code>، ومن بعد الـ query كتوقف وحدها.
+</div>
 <p>ومن بعد نزيدوها فسلسلة ديالنا فـ<code>.each()</code> مع destructuring: <code>.each(({ surveyId, email, choice }) =&gt; { ... })</code>.<span class="cite"><a href="#n7">[7]</a></span></p>
 <div class="callout">
   <span class="label">Pitfall</span>

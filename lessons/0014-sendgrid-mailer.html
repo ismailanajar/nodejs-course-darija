@@ -44,17 +44,18 @@
   <tr><td><code>this.body = new helper.Content('text/html', content)</code></td><td>كيعرّف الـ body كـ HTML.<span class="cite"><a href="#n7">[7]</a></span></td></tr>
   <tr><td><code>this.formatAddresses(recipients)</code></td><td><code>recipients.map(({ email }) =&gt; new helper.Email(email))</code> — كتحل الـ subdocs وتخرج غير emails.<span class="cite"><a href="#n8">[8]</a></span></td></tr>
   <tr><td><code>this.addContent(this.body)</code></td><td>طريقة بنيت فـ base class <code>helper.Mail</code> — غير كتناديه.<span class="cite"><a href="#n8">[8]</a></span></td></tr>
-  <tr><td><code>this.addClickTracking()</code></td><td>طريقة ديالك: <code>new helper.trackingSettings()</code> + <code>new helper.clickTracking(true, true)</code> &rarr; <code>setClickTracking</code> &rarr; <code>addTrackingSettings</code>.<span class="cite"><a href="#n8">[8]</a></span></td></tr>
+  <tr><td><code>this.addClickTracking()</code></td><td>طريقة ديالك: <code>new helper.trackingSettings()</code> + <code>new helper.clickTracking(true, true)</code> → <code>setClickTracking</code> → <code>addTrackingSettings</code>.<span class="cite"><a href="#n8">[8]</a></span></td></tr>
   <tr><td><code>this.addRecipients(this.recipients)</code></td><td>طريقة ديالك: كتزيد كل عنصر لقائمة الـ recipients.<span class="cite"><a href="#n9">[9]</a></span></td></tr>
   <tr><td><code>this.sgApi = SendGrid(keys.sendGridKey)</code></td><td>الـ API object اللي كيتكلم مع SendGrid.<span class="cite"><a href="#n10">[10]</a></span></td></tr>
 </table>
 <p>باش كتدير <strong>click tracking</strong>؟ حيت الـ email اللي كنصيفطو كتبقى وحدة للجميع، ولكن SendGrid كتبديل كل link بـ link خاص بيها — وهكذا كتعرف شكون clicka. هادي هي النقطة اللي كلشي كيعتمد عليها.<span class="cite"><a href="#n14">[14]</a></span></p>
 <ol class="seq">
-  <li><span class="from">Mailer</span> <span class="arrow">→</span> <span class="to">SendGrid</span> <span class="what">POST /v3/mail/send مع HTML واحد للجميع</span></li>
-  <li><span class="from">SendGrid</span> <span class="arrow">→</span> <span class="to">Inbox</span> <span class="what">كل link كيتبدل بـ tracking link خاص</span></li>
-  <li><span class="from">Recipient</span> <span class="arrow">→</span> <span class="to">SendGrid</span> <span class="what">الـ click كيدوز عبر SendGrid قبل redirectDomain</span></li>
-  <li><span class="from">SendGrid</span> <span class="arrow">→</span> <span class="to">Activity</span> <span class="what">كيتسجل click مع email ديال مولاه</span></li>
+  <li><span class="from">Mailer</span> <span class="arrow">→</span> <span class="to">SendGrid</span> <span class="what"><code>mailer.send()</code> كيصيفط <code>POST /v3/mail/send</code> مع <code>HTML</code> واحد من <code>surveyTemplate(survey)</code></span></li>
+  <li><span class="from">SendGrid</span> <span class="arrow">→</span> <span class="to">Inbox</span> <span class="what">كل <code>yes/no</code> link كيتبدل بـ tracking link خاص بـ <code>clickTracking(true, true)</code></span></li>
+  <li><span class="from">Recipient</span> <span class="arrow">→</span> <span class="to">SendGrid</span> <span class="what">الـ click كيدوز عبر SendGrid قبل ما يوصل لـ <code>redirectDomain</code></span></li>
+  <li><span class="from">SendGrid</span> <span class="arrow">→</span> <span class="to">Activity</span> <span class="what">الـ <code>Activity feed</code> كيسجل <code>click</code> مع <code>email</code> ديال مولاه</span></li>
 </ol>
+<p class="mono">كيفاش تقرا هاد المخطط: تبع الأرقام من الـ Mailer حتى للـ Activity — كل سطر فيه شكون صيفط لشكون وشنو تبدل فالطريق.</p>
 
 <h2>3 · الـ send(): كيتصيفط لـ SendGrid</h2>
 <pre dir="ltr"><code>async send() {
@@ -67,35 +68,22 @@
   return response;
 }</code></pre>
 <p>الـ <code>toJSON()</code> طريقة ديال base class كيحوّل كلشي لـ JSON، و <code>emptyRequest</code> + <code>API(request)</code> هي الطريقة ديال SendGrid باش تصيفط الـ request.<span class="cite"><a href="#n10">[10]</a></span> الـ <code>send()</code> <strong>async</strong> — يعني خاصك <code>await</code> عليها.<span class="cite"><a href="#n10">[10]</a></span></p>
-<ol class="steps">
-  <li><b>new Mailer(...)</b>الـ route handler كيعطيها <code>{ subject, recipients }</code> و HTML من <code>surveyTemplate(survey)</code>.</li>
-  <li><b>constructor</b> كيعمر <code>from_email</code>، <code>body</code>، الـ recipients، و <code>addClickTracking()</code>.</li>
-  <li><b>send()</b> <code>toJSON()</code> → <code>emptyRequest</code> → POST <code>/v3/mail/send</code>.</li>
-  <li><b>SendGrid</b> كتبديل كل link بـ tracking link وكتصيفط الـ email لـ inbox.</li>
-  <li><b>recipient</b> كيوصل الـ email، والـ click ديالو كيفتارك فـ Activity feed.</li>
-</ol>
 <p>فـ SendGrid dashboard، من <strong>Activity</strong> تقدر تشوف الـ events: processed, delivered, opened، وفوق كلشي <strong>click</strong> — يعني SendGrid عارف بالضبط شكون clicka على أي email.<span class="cite"><a href="#n14">[14]</a></span></p>
 
 <h2>4 · الـ polish ديال الـ route handler</h2>
-<div class="flow">
-  <div class="flow-row">
-    <div class="flow-node">new Survey<small>بلا save</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">await mailer.send()<small>SendGrid</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">await survey.save()<small>DB</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">credits -= 1<small>await save</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">res.send(user)<small>header يتحدّث</small></div>
-  </div>
-</div>
+<ol class="steps">
+  <li><b>صيفط الأول بـ mailer.send()</b><code>await mailer.send()</code> كيصيفط لـ <code>POST /v3/mail/send</code> — إلا فشل ما كنحفظو والو.</li>
+  <li><b>حفظ الـ survey</b><code>await survey.save()</code> كيحفظ فـ <code>surveys collection</code> مع <code>recipients</code> كاملين.</li>
+  <li><b>نقص credit واحد</b><code>req.user.credits -= 1</code> ومن بعد <code>await req.user.save()</code>.</li>
+  <li><b>رجع الـ user الجديد</b><code>res.send(user)</code> باش الـ header يبان فيه الـ credit ناقص.</li>
+</ol>
+<p class="mono">كيفاش تقرا هاد المخطط: قرا الخطوات بالترتيب — كل خطوة فيها الكود اللي خاصو ينجح قبل ما تدوز للي من بعدو.</p>
 <p>الترتيب كيهم: خاص الـ email توصل قبل ما نسجلو الـ survey، وخصوم الـ <strong>credit واحد</strong> (<code>req.user.credits -= 1</code>) من بعد ما نعلمو بلي الـ send نجح، وفالأخير نرجّعو الـ user المحدّث بحال ما درنا مع Stripe.<span class="cite"><a href="#n13">[13]</a></span> وكلشي لفّف فـ <strong>try/catch</strong> — إلا وقع شي خطأ، <code>res.status(422)</code> (unprocessable entity) مع الـ error message.<span class="cite"><a href="#n13">[13]</a></span></p>
 <div class="callout analogy">
   <span class="label">بأي مثال</span>
   الترتيب بحال الحانوت: كتعطي السلعة للكليان عاد كتكتبها فالدفتر وكتاخد الثمن. إلا ما وصلاتش السلعة ما كتكتب والو وما كتنقص والو: صيفط عاد حفظ عاد نقص الـ credit.
 </div>
-<p>وأول ما نختبرو، كنلقاو مشكل: الـ links ديال yes/no كيرجعو لـ <code>localhost:3000</code> — ماشي مشكل فـ development، ولكن <strong>فـ email ما يمكنش تستعمل relative links</strong> (غادي يوصلو لـ domain ديال Gmail!). الحل: <code>redirectDomain</code> key فـ <code>config/dev.js</code> (<code>http://localhost:3000</code>) و <code>config/prod.js</code> (<code>process.env.REDIRECT_DOMAIN</code>)، والـ template كيستعملو بـ string interpolation، وكنصاوبو route <code>GET /api/surveys/thanks</code> كيرجع "Thanks for voting".<span class="cite"><a href="#n15">[15]</a></span></p>
+<p>ملي جربنا لقينا الـ yes/no links خدامين بـ <code>localhost:3000</code> — خدام فـ development ولكن فـ الـ email الـ relative link كيحل فـ domain ديال Gmail. الحل هو <code>redirectDomain</code> فـ <code>config/dev.js</code> بـ <code>http://localhost:3000</code> وفـ <code>config/prod.js</code> بـ <code>process.env.REDIRECT_DOMAIN</code>، والـ template كيدخلو بـ string interpolation، وزدنا <code>GET /api/surveys/thanks</code> اللي كيرجع Thanks for voting. علاش هادي مهمة ملي تخدم لـ client: حيت الـ client ما كيقبلش email فيها زر خاسر — الـ link خاصو يخدم فـ development وفـ production بلا تبديل يدوي.<span class="cite"><a href="#n15">[15]</a></span></p>
 <p class="mono" style="font-size:0.8rem;color:var(--ink-faint)">المرجع: <a href="../reference/0005-survey-model-mailer.html">Reference 0005 — Survey Model &amp; Mailer Cheatsheet</a></p>
 
 <h2>5 · ممارسة retrieval</h2>

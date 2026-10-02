@@ -33,6 +33,10 @@
   return errors;
 }</code></pre>
 <p>القاعدة: <strong>إلا كان الـ <code>errors</code> فارغ، الـ form صحيحة وكتمشي للإرسال</strong>; وإلا كان فيه شي property، Redux Form كيوقّف الـ submission وكيعرف بلي شي حاجة ناقصة.<span class="cite"><a href="#n2">[2]</a></span></p>
+<div class="compare">
+  <div class="col-good"><span class="tag">errors فارغ</span>الـ form صحيحة وكتمشي للإرسال وما كيبان حتى خطأ تحت الحقول.</div>
+  <div class="col-bad"><span class="tag">errors فيه key</span>Redux Form كيوقف الـ submit والـ SurveyField كتوري الرسالة تحت الحقل.</div>
+</div>
 <p>الربط بين الـ error والـ حقل كيوقع بالـ <strong>اسم</strong>: الـ key ديال الـ error خاصو يتطابق مع الـ <code>name</code> ديال الـ <code>Field</code>، ومن بعد كتاخد <code>meta.error</code> و <code>meta.touched</code> داخل <code>SurveyField</code> باش توري الرسالة تحت الحقل.<span class="cite"><a href="#n3">[3]</a></span> الـ تصليح ديال الرسالة: <code>&lt;div class="red-text"&gt;</code> مع <code>margin-bottom: 20px</code>.<span class="cite"><a href="#n3">[3]</a></span></p>
 
 <h2>3 · تحقق من الـ recipients: split و regex</h2>
@@ -53,7 +57,17 @@
 <h2>4 · الـ wizard: form &rarr; review بقيم كيبقاو</h2>
 <p>القرار: <strong>component-level state</strong> داخل <code>SurveyNew</code> سميت <code>showFormReview</code> (كتبدا بـ <code>false</code>). الـ component عنده <code>renderContent()</code>: إلا <code>true</code> كيرجع <code>SurveyFormReview</code> (functional component)، وإلا لا كيرجع <code>SurveyForm</code>.<span class="cite"><a href="#n5">[5]</a></span></p>
 <p>التبديل كيوقع بـ callback: <code>onSurveySubmit</code> كتديرو لـ <code>SurveyForm</code> فـ <code>handleSubmit</code>، والـ body ديالو كينادي <code>this.setState({ showFormReview: true })</code>. تنبيه مهم: كتعطيه <strong>المرجع بلا قوسين</strong> — إلا حطّيتي <code>()</code> كينادى مباشرة فـ render.<span class="cite"><a href="#n5">[5]</a></span> وفالجانب الآخر، <code>onCancel</code> كيرجع <code>showFormReview</code> لـ <code>false</code>.<span class="cite"><a href="#n6">[6]</a></span></p>
+<ol class="steps">
+  <li><b>البداية: SurveyForm</b><code>showFormReview</code> كيبدا بـ <code>false</code>، و<code>renderContent()</code> كيرجع الـ form.</li>
+  <li><b>next كيقلب الواجهة</b><code>onSurveySubmit</code> (بلا قوسين) كينادي <code>setState({ showFormReview: true })</code>.</li>
+  <li><b>SurveyFormReview</b> كيتشاف بدل الـ form — نفس الـ <code>SurveyNew</code> غير كيرجع content آخر.</li>
+  <li><b>cancel كيرجع للور</b><code>onCancel</code> كيرجع <code>showFormReview</code> لـ <code>false</code> والقيم مازالين حاضرين.</li>
+</ol>
 <p>باش الـ values ما تتمسحش ملي كتمشي من <code>SurveyForm</code> للـ review، كنزيدو <code>destroyOnUnmount: false</code> — لأن Redux Form <strong>كترمي القيم ملي الـ component يunmount</strong>، وهادي default عندها.<span class="cite"><a href="#n7">[7]</a></span> أما شكون كيقرا القيم فالـ review: <code>connect</code> و <code>mapStateToProps</code> كيرجعو <code>state.form.surveyForm.values</code> كـ prop اسمو <code>formValues</code>.<span class="cite"><a href="#n7">[7]</a></span></p>
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  نسيتي destroyOnUnmount: ملي كتمشي للـ review وترجع بالـ cancel كتلقى الـ form خاوية حيت Redux Form رمات القيم ملي الـ SurveyForm تحيد من الشاشة. الحل: زيد destroyOnUnmount: false وخلي نفس الـ form name فالبلاصتين.
+</div>
 <p>الـ review نفسو ما كيكرر والو: الـ fields خرجناهم لـ <code>formFields.js</code> (نفس الـ array اللي كيستعملها <code>SurveyForm</code>)، والـ review كي loop عليها ويوري <code>label</code> + قيمة.<span class="cite"><a href="#n8">[8]</a></span> وأخيرا زر <strong>send survey</strong> (green, flat, right + icon ديال <code>email</code>) هو اللي خاصو يصيفط — وتلاتة ديال الـ tasks باقيين: شنو كيوقع فالـ submit، كيفاش نرجعو للـ dashboard، وكيفاش نرميو الـ values بعد ما الـ user يclicki cancel.<span class="cite"><a href="#n9">[9]</a></span></p>
 
 <h2>5 · ممارسة retrieval</h2>

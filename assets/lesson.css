@@ -1,0 +1,276 @@
+/* lesson.css — shared stylesheet for all lessons & reference docs.
+   Tufte-inspired: narrow measure, serif body, sidenotes, prints clean. */
+
+:root {
+  --ink: #1a1a1a;
+  --ink-soft: #4a4a4a;
+  --ink-faint: #767676;
+  --paper: #fffdf8;
+  --accent: #b0413e;
+  --accent-soft: #f3e4e2;
+  --rule: #d8d4cc;
+  --code-bg: #f4f1ea;
+  --ok: #2e6f40;
+  --ok-bg: #e4efe6;
+  --bad: #a33232;
+  --bad-bg: #f6e6e4;
+  --measure: 34rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 17px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  line-height: 1.55;
+}
+
+.page {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 3.5rem 1.25rem 5rem;
+}
+
+/* --- Masthead --- */
+.masthead { margin-bottom: 2.5rem; }
+.kicker {
+  font-family: "SF Mono", Consolas, "Liberation Mono", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.6rem;
+}
+h1 {
+  font-size: 2rem;
+  line-height: 1.2;
+  font-weight: normal;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.01em;
+}
+.dek {
+  font-style: italic;
+  color: var(--ink-soft);
+  margin: 0;
+}
+.meta {
+  font-family: "SF Mono", Consolas, "Liberation Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+  border-top: 1px solid var(--rule);
+  margin-top: 1.25rem;
+  padding-top: 0.6rem;
+}
+
+/* --- Structure --- */
+h2 {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin: 2.5rem 0 0.75rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--rule);
+}
+h3 { font-size: 1.02rem; margin: 1.6rem 0 0.4rem; }
+p { margin: 0 0 1rem; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { background: var(--accent-soft); }
+
+strong { font-weight: bold; }
+em { font-style: italic; }
+
+ul, ol { margin: 0 0 1rem; padding-left: 1.3rem; }
+li { margin-bottom: 0.35rem; }
+
+code, .mono {
+  font-family: "SF Mono", Consolas, "Liberation Mono", monospace;
+  font-size: 0.84em;
+  background: var(--code-bg);
+  padding: 0.08em 0.3em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 3px solid var(--accent);
+  padding: 0.85rem 1rem;
+  overflow-x: auto;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin: 0 0 1.1rem;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* --- Callouts --- */
+.callout {
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  padding: 0.8rem 1rem;
+  margin: 0 0 1.2rem;
+  font-size: 0.95rem;
+}
+.callout .label {
+  font-family: "SF Mono", Consolas, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 0.3rem;
+}
+.source {
+  border: 1px solid var(--rule);
+  padding: 0.85rem 1rem;
+  margin: 0 0 1.2rem;
+  font-size: 0.92rem;
+}
+.source .label {
+  font-family: "SF Mono", Consolas, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+/* --- Citations --- */
+.cite { font-size: 0.8em; vertical-align: super; line-height: 0; }
+.cite a { text-decoration: none; }
+
+/* --- Quiz --- */
+.quiz { margin: 0 0 1.6rem; }
+.quiz-q {
+  font-weight: bold;
+  margin: 1.4rem 0 0.55rem;
+  font-size: 0.98rem;
+}
+.quiz-q .num { color: var(--accent); margin-right: 0.35rem; }
+.opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.93rem;
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.55rem 0.8rem;
+  margin-bottom: 0.4rem;
+  cursor: pointer;
+  color: var(--ink);
+  transition: border-color 0.12s, background 0.12s;
+}
+.opt:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+.opt:disabled { cursor: default; opacity: 0.75; }
+.opt.correct { border-color: var(--ok); background: var(--ok-bg); opacity: 1; }
+.opt.wrong { border-color: var(--bad); background: var(--bad-bg); opacity: 1; }
+.opt.reveal { border-color: var(--ok); opacity: 1; }
+.explain {
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  border-left: 3px solid var(--rule);
+  padding: 0.3rem 0.7rem;
+  margin: 0.2rem 0 0.9rem;
+  display: none;
+}
+.explain.show { display: block; }
+.explain b { color: var(--ink); }
+.quiz-score {
+  font-family: "SF Mono", Consolas, monospace;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  border-top: 1px solid var(--rule);
+  padding-top: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+/* --- Footer / nav --- */
+.lesson-footer {
+  margin-top: 3rem;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.2rem;
+  font-size: 0.9rem;
+}
+.followup {
+  background: var(--code-bg);
+  border: 1px dashed var(--rule);
+  padding: 0.8rem 1rem;
+  margin: 1.2rem 0;
+  font-size: 0.92rem;
+}
+.nav-links { font-size: 0.88rem; margin-top: 1.2rem; }
+.nav-links span { color: var(--ink-faint); margin: 0 0.4rem; }
+
+/* --- Tables --- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  margin: 0 0 1.2rem;
+}
+th, td {
+  border-bottom: 1px solid var(--rule);
+  padding: 0.45rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  font-family: "SF Mono", Consolas, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* --- Diagram (pure CSS) --- */
+.flow { font-size: 0.85rem; margin: 0 0 1.2rem; }
+.flow-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+.flow-node {
+  flex: 1;
+  border: 1px solid var(--ink);
+  padding: 0.5rem;
+  text-align: center;
+  background: #fff;
+}
+.flow-node small { display: block; color: var(--ink-faint); font-size: 0.72rem; }
+.flow-arrow {
+  align-self: center;
+  color: var(--accent);
+  font-family: monospace;
+  font-size: 0.9rem;
+}
+
+/* --- RTL (Arabic-script prose, Latin technical terms) --- */
+[dir="rtl"] { text-align: right; }
+[dir="rtl"] ul, [dir="rtl"] ol { padding-right: 1.3rem; padding-left: 0; }
+[dir="rtl"] .callout,
+[dir="rtl"] .explain { border-left: 0; border-right: 3px solid var(--accent); }
+[dir="rtl"] .explain { border-right-color: var(--rule); }
+[dir="rtl"] pre {
+  direction: ltr;
+  text-align: left;
+  border-left: 3px solid var(--accent);
+  border-right: 0;
+}
+[dir="rtl"] .flow { direction: ltr; text-align: left; }
+[dir="rtl"] .quiz-score { direction: ltr; text-align: right; }
+[dir="rtl"] .quiz-q, [dir="rtl"] .opt, [dir="rtl"] .explain { text-align: right; }
+
+/* --- Print --- */
+@media print {
+  :root { --paper: #fff; }
+  body { font-size: 11pt; }
+  .page { max-width: none; padding: 0; }
+  .opt { border: 1px solid #999; }
+  a { color: #000; text-decoration: none; }
+  .masthead, h2 { break-after: avoid; }
+  .quiz-q, .opt, pre, table { break-inside: avoid; }
+}

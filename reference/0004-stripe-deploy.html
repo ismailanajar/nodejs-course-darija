@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference 0004 — Stripe Billing &amp; Production Deploy Cheatsheet</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">Reference · 0004 · Cheatsheet</p>
+  <h1>Stripe Billing &amp; Production Deploy</h1>
+  <p class="dek">جوج حوايج اللي كيتصاوبو مرة وحدة وكتعاود تستعملهم: مسار الـ الدفع كامل، و كيفاش نفس الـ server كيقدم الـ API + الـ React build.</p>
+  <p class="meta">Compressed from course sections 08–09 · Print this page</p>
+</header>
+
+<h2>1 · الـ payment flow من البداية للنهاية</h2>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">Payments component<small>React Stripe Checkout</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">token<small>السيرفر ما كيشوفش card</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">POST /api/stripe<small>body-parser + requireLogin</small></div>
+  </div>
+  <div class="flow-row">
+    <div class="flow-node">stripe.charges.create<small>amount 500, currency usd</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">req.user.credits += 5<small>await save()</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">res.send(user)<small>auth reducer &rarr; header</small></div>
+  </div>
+</div>
+<ul>
+  <li>الـ form ديال card كيسكن عند Stripe (iframe)، الـ server كيتسلّم غير <strong>token</strong>.<span class="cite"><a href="#src1">[1]</a></span></li>
+  <li>Test card: <code>4242 4242 4242 4242</code> + أي future date + أي CVC.<span class="cite"><a href="#src2">[2]</a></span></li>
+  <li>الـ charge object: ID كيبدا بـ <code>ch_</code>، الـ amount فـ cents (500 = $5), الـ currency.<span class="cite"><a href="#src3">[3]</a></span></li>
+  <li>رجع الـ user المحدّث (حتى <code>/api/current_user</code> كيرجع <code>credits</code>) باش الـ header يتحدّث بلا refresh.<span class="cite"><a href="#src4">[4]</a></span></li>
+</ul>
+
+<h2>2 · keys و env vars</h2>
+<table dir="ltr">
+  <tr><th>Key</th><th>وين كتعيش</th><th>الاستعمال</th></tr>
+  <tr><td><code>stripePublishableKey</code> (<code>pk_…</code>)</td><td>client (React)</td><td>Stripe Checkout form — تقدر تتعرض بحرية.</td></tr>
+  <tr><td><code>stripeSecretKey</code> (<code>sk_…</code>)</td><td>server only</td><td><code>require('stripe')(keys.stripeSecretKey)</code>.</td></tr>
+  <tr><td><code>REACT_APP_*</code></td><td>client build</td><td>CRA ما كيكشفش إلا هكذا env vars.<span class="cite"><a href="#src5">[5]</a></span></td></tr>
+  <tr><td><code>sendGridKey</code></td><td>server only</td><td><code>SendGrid(keys.sendGridKey)</code> فـ Mailer.<span class="cite"><a href="#src8">[8]</a></span></td></tr>
+  <tr><td><code>redirectDomain</code></td><td>dev.js / prod.js</td><td>الـ domain ديال yes/no links فـ الـ email (dev = localhost:3000, prod = env var).<span class="cite"><a href="#src9">[9]</a></span></td></tr>
+</table>
+<pre dir="ltr"><code>npm install --save body-parser   # + app.use(bodyParser.json()) قبل الـ routes</code></pre>
+
+<h2>3 · شكون كيحمي شنو: middleware placement</h2>
+<table dir="ltr">
+  <tr><th>Middleware</th><th>File</th><th>الشرط</th><th>الرد</th></tr>
+  <tr><td><code>requireLogin</code></td><td><code>middleware/requireLogin.js</code></td><td><code>!req.user</code></td><td><code>401</code> + message</td></tr>
+  <tr><td><code>requireCredits</code></td><td><code>middleware/requireCredits.js</code></td><td><code>req.user.credits &lt; 1</code></td><td><code>403</code> (402 reserved)<span class="cite"><a href="#src6">[6]</a></span></td></tr>
+</table>
+<pre dir="ltr"><code>app.post('/api/stripe',  requireLogin, stripeHandler);
+app.post('/api/surveys', requireLogin, requireCredits, surveyHandler);</code></pre>
+<ul>
+  <li>الـ middleware كتتمرّرو <strong>كـ argument</strong> (ثاني/ثالث) وكتمرّرو <strong>بلا parentheses</strong> — Express كيناديه بوحدو.<span class="cite"><a href="#src7">[7]</a></span></li>
+  <li>الترتيب: <code>next()</code> كتتنادى غير إلا كلشي مزيان؛ login قبل credits، والجوج قبل الـ handler.<span class="cite"><a href="#src7">[7]</a></span><span class="cite"><a href="#src6">[6]</a></span></li>
+  <li>الـ middlewares العامة (passport, bodyParser, session) كتتثبّت بـ <code>app.use</code> فوق كامل — أما هادو خصوصيين route route.<span class="cite"><a href="#src7">[7]</a></span></li>
+</ul>
+
+<h2>4 · production: server واحد كيقدم API + UI</h2>
+<pre dir="ltr"><code>if (process.env.NODE_ENV === 'production') {
+  app.use(express.static('client/build'));          // 1) static files
+  const path = require('path');
+  app.get('*', (req, res) =&gt; {                      // 2) catch-all
+    res.sendFile(path.resolve(__dirname, 'client', 'build', 'index.html'));
+  });
+}</code></pre>
+<ul>
+  <li>الترتيب هو القانون: API routes &rarr; ملفات <code>client/build</code> &rarr; <code>index.html</code> (React router كتكفّل الـ path).<span class="cite"><a href="#src10">[10]</a></span></li>
+  <li>Refresh على <code>/surveys</code> = full reload &rarr; السيرفر ما لقاش ملف &rarr; <code>index.html</code> &rarr; الـ client router.<span class="cite"><a href="#src11">[11]</a></span></li>
+  <li>الـ build: <code>cd client &amp;&amp; npm run build</code> — كل تبديل فـ <code>src</code> خاصو build جديد.<span class="cite"><a href="#src12">[12]</a></span></li>
+</ul>
+
+<h2>5 · deploy &amp; fixes</h2>
+<table dir="ltr">
+  <tr><th>المشكل</th><th>الحل</th></tr>
+  <tr><td>Deploy كيقدّم غير الـ Express (بلا UI)</td><td>زيد client build step فالdeploy: <code>"heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix client &amp;&amp; npm run build --prefix client"</code>.<span class="cite"><a href="#src13">[13]</a></span></td></tr>
+  <tr><td>Render: build command = <code>npm install</code> فقط</td><td>بدلو لـ <code>npm install &amp;&amp; npm run heroku-postbuild</code>.<span class="cite"><a href="#src13">[13]</a></span></td></tr>
+  <tr><td>Build fail بـ <code>SyntaxError: Unexpected token</code> / <code>@hapi</code></td><td>Node version mismatch: حيّد <code>package-lock.json</code> (client + server)، استعمل Node LTS، وطابق <code>engines</code>.<span class="cite"><a href="#src14">[14]</a></span></td></tr>
+  <tr><td><code>/surveys</code> كيرجع 404 فـ production</td><td>الـ catch-all ماشي فـ الـ if ديال <code>NODE_ENV</code>، ولا <code>client/build</code> ما مصاوبش.<span class="cite"><a href="#src10">[10]</a></span></td></tr>
+</table>
+
+<h2 id="sources">Sources</h2>
+<ol style="font-size:0.85rem" dir="ltr">
+  <li id="src1">Course lecture 08.03 · <em>Stripe Billing Process</em> (00:33–01:05) — <code>08. Handling Payments/03. Stripe Billing Process.vtt</code></li>
+  <li id="src2">Course lecture 08.07–08 · <em>The Payments Component</em> / <em>Stripe Tokens</em> — <code>07. The Payments Component.vtt</code>, <code>08. Stripe Tokens.vtt</code></li>
+  <li id="src3">Course lecture 08.16 · <em>Finalizing a Charge</em> (00:00–04:39) — <code>08. Handling Payments/16. Finalizing a Charge.vtt</code></li>
+  <li id="src4">Course lecture 08.17 · <em>Adding Credits to a User</em> (00:00–07:26) + 08.20–21 — <code>17. Adding Credits to a User.vtt</code>, <code>20. Displaying Credit Quantity.vtt</code>, <code>21. Updating Credits.vtt</code></li>
+  <li id="src5">Course lecture 08.05–06 · <em>Stripe API Keys</em> / <em>Env Variables with React</em> — <code>05. Stripe API Keys.vtt</code>, <code>06. Env Variables with React.vtt</code></li>
+  <li id="src6">Course lecture 10.09 · <em>Verifying Minimum Credits</em> (00:00–06:24) — <code>10. Mongoose for Survey Creation/09. Verifying Minimum Credits.vtt</code></li>
+  <li id="src7">Course lecture 08.19 · <em>Route-Specific Middlewares</em> (00:00–11:39) — <code>08. Handling Payments/19. Route-Specific Middlewares.vtt</code></li>
+  <li id="src8">Course lecture 10.23 · <em>Sending SendGrid Emails</em> (00:00–06:16) — <code>10. Mongoose for Survey Creation/23. Sending SendGrid Emails.vtt</code></li>
+  <li id="src9">Course lecture 10.28 · <em>Feedback for User Feedback</em> (00:00–11:12) — <code>10. Mongoose for Survey Creation/28. Feedback for User Feedback.vtt</code></li>
+  <li id="src10">Course lecture 09.02 · <em>Routing in Production</em> (00:00–08:08) — <code>09. Back End to Front End Routing in Production/02. Routing in Production.vtt</code></li>
+  <li id="src11">Course lecture 09.07 · <em>Testing Deployment</em> (00:19–01:08) — <code>09. Back End to Front End Routing in Production/07. Testing Deployment.vtt</code></li>
+  <li id="src12">Course lecture 09.03–04 · <em>Deployment Options</em> / <em>Adding in a Build Step</em> — <code>03. Deployment Options.vtt</code>, <code>04. Adding in a Build Step.vtt</code></li>
+  <li id="src13">Course note · <em>Postbuild and Deployment (Render)</em> — <code>09. Back End to Front End Routing in Production/05. [Render] Postbuild and Deployment.html</code></li>
+  <li id="src14">Course note · <em>Fixes for Failing Heroku Builds</em> — <code>09. Back End to Front End Routing in Production/06. Fixes for Failing Heroku Builds.html</code></li>
+</ol>
+
+<p class="nav-links"><a href="../lessons/0011-stripe-payments.html">&larr; الدرس 11</a><span>·</span><a href="../lessons/0012-production-routing.html">الدرس 12</a><span>·</span><a href="../reference/0005-survey-model-mailer.html">المرجع 0005</a><span>·</span><a href="../MISSION.md">المهمة</a></p>
+
+</main>
+</body>
+</html>

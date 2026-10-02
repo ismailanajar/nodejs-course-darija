@@ -55,6 +55,10 @@
   <li><strong>reducer:</strong> <code>surveysReducer</code> جديد — الـ state الافتراضي ديالو <strong>array خاوية</strong> (يعني ملي يحل التطبيق الـ surveys كيولّيو خاويين)، وكيجاوب على <code>FETCH_SURVEYS</code> بـ<code>return action.payload</code>.<span class="cite"><a href="#n5">[5]</a></span></li>
   <li><strong>combineReducers:</strong> نزيدوه بـ<code>surveys: surveysReducer</code> — وهاد هو السبب علاش من بعد كنقراو <code>state.surveys</code>.<span class="cite"><a href="#n5">[5]</a></span></li>
 </ul>
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  إلا صاوبتي <code>surveysReducer</code> وما سجلتيهش فـ<code>combineReducers</code>، <code>state.surveys</code> غادي يبقى <code>undefined</code> — والـ <code>SurveyList</code> كتطيح فـconsole بـ<code>Cannot read property 'map' of undefined</code> وبلا حتى بطاقة. الإصلاح: سجّلو بـ<code>surveys: surveysReducer</code> وتأكد أن الـ state الافتراضي هو array خاوية.
+</div>
 
 <h2>4 · React: مكوّن منفصل + cards</h2>
 <p>قرار تصميم مهم: الـ <strong>Dashboard ما خاصوش</strong> يتكلف بالجلب ولا بالعرض. حنا صاوبنا مكوّن جديد <code>components/surveys/SurveyList.js</code> — هو اللي كيجيب وكيعرض، والـ Dashboard غير كيفتّحو.<span class="cite"><a href="#n6">[6]</a></span> داخل <code>SurveyList</code>:<span class="cite"><a href="#n6">[6]</a></span></p>
@@ -62,6 +66,15 @@
   <li><code>connect(mapStateToProps, { fetchSurveys })</code> — الـ <code>mapState</code> غير كيرجع <code>state.surveys</code> (بـshorthand: <code>{ surveys }</code>).<span class="cite"><a href="#n6">[6]</a></span></li>
   <li><code>componentDidMount()</code> فيه <code>this.props.fetchSurveys()</code> — أي ملي المكوّن يتعرض للمرة الأولى.<span class="cite"><a href="#n6">[6]</a></span></li>
 </ul>
+<div class="cycle">
+  <span class="cyc-node">componentDidMount</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">fetchSurveys</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">GET /api/surveys</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">dispatch FETCH_SURVEYS</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">reducer</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">state.surveys</span>
+</div>
+<div class="cycle-return">الـ SurveyList كتعاود تrender بالـ cards الجديدة</div>
 <p><strong>العرض:</strong> HTML ديال <strong>Materialize cards</strong> — ماشي الـ divs ديال <code>row</code> و <code>col</code> اللي كيقدرو يضيّقو العرض، غير من <code>card ...</code> لتحت. لكل survey وحدة:<span class="cite"><a href="#n7">[7]</a></span></p>
 <pre><code>this.props.surveys.map(survey =&gt; (
   &lt;div key={survey._id} className="card darken-1"&gt;

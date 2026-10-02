@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 11 — الدفع بـ Stripe: tokens و charges و credits</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 11 · الكورس section 08</p>
+  <h1>الدفع بـ Stripe: tokens و charges و credits</h1>
+  <p class="dek">الفلوس هي قلب أي freelance project: غادي نمشيو مع الـ flow كامل ديال الدفع — من زر "Add credits" حتى للـ credits اللي كتبان فـ header، والسيرفر ديالك عمرو ما كيشوف numbers ديال card.</p>
+  <p class="meta">~12 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تقدر تشرح وتبني الـ payment flow كامل ديال أي تطبيق: <strong>Stripe Checkout</strong> كيعطيك <strong>token</strong>، السيرفر كيبدّلو بـ <strong>charge</strong>، ومن بعد كتزيد <strong>credits</strong> على الـ user وتحمي الـ route بـ <strong>middleware</strong>. هادي هي الخدمة اللي كتخلّي الـ client يدفع ليك.
+</div>
+
+<h2>1 · الـ flow كامل: من الزر حتى للـ credit</h2>
+<p>الكورس كيبدا من الـ UI: <strong>Payments component</strong> داخل الـ header، ملي الـ user يكون مسجّل، وكتبان ليه وصلة "Add credits". الكليك كيحل form ديال <strong>React Stripe Checkout</strong> اللي كتسجل الـ card.<span class="cite"><a href="#n1">[1]</a></span><span class="cite"><a href="#n2">[2]</a></span></p>
+<p>المهم بزاف: الـ form كتصاوب عند <strong>Stripe</strong> نفسها (iframe ديالهم)، وملي كتسالا، Stripe كترجع ليك <strong>token</strong> — يعني معرّف مؤقت ديال الـ card، ماشي numbers نفسها. <strong>السيرفر ديالك عمرو ما كيشوف numbers ديال card.</strong><span class="cite"><a href="#n1">[1]</a></span></p>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">Payments component<small>زر "Add credits"</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">Stripe Checkout<small>token فقط</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">POST /api/stripe<small>body-parser</small></div>
+  </div>
+  <div class="flow-row">
+    <div class="flow-node">stripe.charges.create<small>500 cents</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">req.user.credits += 5<small>save()</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">res.send(user)<small>header يتحدّث</small></div>
+  </div>
+</div>
+<p>فـ React، الـ component كيتصل بـ <code>connect</code> ديال <code>react-redux</code>، وكيستقبل الـ action creator <code>handleToken</code> على <code>this.props</code>. أول ما Stripe يعطيك الـ token، كتديرو <code>this.props.handleToken(token)</code> — وقبل ما نصاوبو الـ handler عند السيرفر، الـ request كترجع <strong>404</strong> حيت ما كاين حتى route.<span class="cite"><a href="#n4">[4]</a></span></p>
+
+<h2>2 · الـ keys: publishable مقابل secret</h2>
+<p>عندك جوج مفاتيح: <strong>publishable key</strong> كتديها للـ client (كتبدا بـ <code>pk_</code>)، و<strong>secret key</strong> اللي كتبقى غير عند السيرفر.<span class="cite"><a href="#n3">[3]</a></span> فـ Create React App، الـ env vars خاصهم يتبدلو بـ <code>REACT_APP_</code> باش يقدرو يوصلو للـ client، وكتخزنيهم فـ <code>config/keys</code>.<span class="cite"><a href="#n3">[3]</a></span></p>
+<pre dir="ltr"><code>const stripe = require('stripe')(keys.stripeSecretKey);   // غير فـ server
+// client: publishable key فقط — للـ Checkout form</code></pre>
+<p>الـ <code>stripe</code> npm module هو اللي كياخد الـ token وكيمشي بيه لـ Stripe API باش يصاوب الـ charge.<span class="cite"><a href="#n5">[5]</a></span></p>
+
+<h2>3 · السيرفر: charge ثم credits</h2>
+<p>الـ route كيتسجل فـ ملف جديد <code>billingRoutes</code> (كيتصاوب كـ function كتاخد الـ app، ومن بعد كيتشعل من <code>index.js</code>) على <code>POST /api/stripe</code>.<span class="cite"><a href="#n4">[4]</a></span><span class="cite"><a href="#n5">[5]</a></span> باش توصل لـ <code>req.body</code> (فين كاين الـ token)، خاصك <strong>body-parser</strong>: <code>npm install --save body-parser</code> و <code>app.use(bodyParser.json())</code>.<span class="cite"><a href="#n6">[6]</a></span></p>
+<pre dir="ltr"><code>const charge = await stripe.charges.create({
+  amount: 500,                       // 500 cents = $5
+  currency: 'usd',
+  description: '$5 for 5 credits',
+  source: req.body.id                // الـ token
+});</code></pre>
+<p>الـ <code>charges.create</code> كيرجع <strong>promise</strong> — نتا كتكتب <code>async</code> على الـ request handler و <code>await</code> قدام الـ call، ومن بعد كتوصّل لـ object ديال الـ charge (ID ديالو كيبدا بـ <code>ch_</code>، الـ currency، الـ amount...).<span class="cite"><a href="#n7">[7]</a></span></p>
+<p>من بعد، الـ user model عندو property جديدة: <code>credits</code> من نوع Number بـ <code>default: 0</code> — يعني كلشي كيبدا بلا والو، وخاصو يخلّص باش يزيد. بعد ما الـ charge ينجح: <code>req.user.credits += 5</code>، ومن بعد <code>await req.user.save()</code> (بلا save، التبديل كيبقى غير فـ الذاكرة)، وفالأخير <code>res.send(user)</code> بـ النسخة الجديدة.<span class="cite"><a href="#n8">[8]</a></span></p>
+<p>علاش كترجعي الـ user نفسه للـ client؟ حيت نفس النمط اللي كيخدم مع الـ header: <code>/api/current_user</code> كيرجع الـ user كامل مع <code>credits</code>، وهكذا حتى الـ refresh كيبان فيه الرصيد صحيح.<span class="cite"><a href="#n10">[10]</a></span></p>
+
+<h2>4 · الحماية: requireLogin كـ route middleware</h2>
+<p>أول نسخة ديال الحماية كانت <code>if (!req.user) return res.status(401)...</code> داخل الـ handler — كتخدم، ولكن كتعاود من كل مرة. الحل: ملف جديد <code>middleware/requireLogin.js</code> كيصدّر arrow function بثلاث arguments: <code>req, res, next</code>.<span class="cite"><a href="#n9">[9]</a></span></p>
+<ul>
+  <li>إلا ما كانش <code>req.user</code> (Passport هو اللي كيملأو): كترجع <strong>401</strong> وكتوقّف الـ chain — <strong>كتنادي <code>next()</code> غير إلا كلشي سالا مزيان</strong>.<span class="cite"><a href="#n9">[9]</a></span></li>
+  <li>إلا كان مسجّل: كتنادي <code>next()</code> ويكمّل حتى لـ route handler.<span class="cite"><a href="#n9">[9]</a></span></li>
+  <li>التركيب: <code>app.post('/api/stripe', requireLogin, handler)</code> — يعني <strong>كـ ثاني argument</strong>، وكتمرّره <strong>بلا ما تنادي عليه</strong> (Express كينادي بوحدو بحال callback).<span class="cite"><a href="#n9">[9]</a></span></li>
+</ul>
+<p>فالأخير، الـ header كيوري الـ credits من <code>this.props.auth.credits</code> فـ <code>renderContent()</code> ديال <code>header.js</code>، وملي كتجي الـ response الجديدة ديال <code>/api/current_user</code>، العدد كيتبدّل وحدو.<span class="cite"><a href="#n10">[10]</a></span></p>
+<p class="mono" style="font-size:0.8rem;color:var(--ink-faint)">المرجع: <a href="../reference/0004-stripe-deploy.html">Reference 0004 — Stripe &amp; Deploy Cheatsheet</a></p>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> فهاد الـ flow، شكون اللي <strong>عمري ما</strong> كيشوف numbers ديال card؟</p>
+  <button class="opt" data-correct>السيرفر ديالنا حيت Stripe كيتولى الـ token</button>
+  <button class="opt">Stripe حيت هو اللي كيصاوب الـ token</button>
+  <button class="opt">الـ React app حيت كيبعث الـ token</button>
+  <button class="opt">الـ browser حيت كيجمع الداتا قبل checkout</button>
+  <p class="explain">الـ form ديال Stripe هو اللي كيتعامل مع numbers، ويرجع token. السيرفر ديالنا كيتسلّم غير الـ token وكيبعثو لـ Stripe API.<span class="cite"><a href="#n1">[1]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> فين خاصك تحط <code>requireLogin</code> باش تحمي <code>POST /api/stripe</code>؟</p>
+  <button class="opt">كـ middleware عام فوق كامل التطبيق</button>
+  <button class="opt" data-correct>كـ ثاني argument ديال route handler</button>
+  <button class="opt">داخل الـ handler بـ if statement</button>
+  <button class="opt">بعد ما نصاوبو الـ charge object</button>
+  <p class="explain">الـ middleware ديال المشروع خاصو يطبق غير على routes مخصوصين، وكتمرّرو كـ argument للـ <code>app.post</code> بلا ما تنadiو عليه.<span class="cite"><a href="#n9">[9]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> مراجعة: من الدرس 1.1، React ملي كيحتاج data ديال surveys كيسول لـمن؟</p>
+  <button class="opt">كيسول لـMongoDB مباشرة حيت أسرع</button>
+  <button class="opt">كيسول لـGoogle OAuth كل مرة</button>
+  <button class="opt">كيسول لـStripe باش ياخد credits</button>
+  <button class="opt" data-correct>كيسول لـExpress API وحدها فقط</button>
+  <p class="explain">Law #1: الـ React كيسول غير لـExpress API. حتى الـ POST ديال الـ token كيمشي بنفس الطريق — React &rarr; Express &rarr; Stripe.<span class="cite"><a href="#n4">[4]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> علاش خدامين <code>body-parser</code> قبل ما نوصلو لـ <code>POST /api/stripe</code>؟</p>
+  <button class="opt">باش نصاوبو الـ build ديال React app</button>
+  <button class="opt">باش requireLogin يشوف كامل الـ request جاي</button>
+  <button class="opt" data-correct>باش JSON ديال token يوصل لـ req.body</button>
+  <button class="opt">باش الـ charge يتزاد على user ديالنا</button>
+  <p class="explain">بلا <code>bodyParser.json()</code>، <code>req.body</code> كيكون فارغ والـ token كيضيع — حيت الـ token جاي من JSON body ديال الـ POST.<span class="cite"><a href="#n6">[6]</a></span></p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0004-stripe-deploy.html">المرجع 0004</a><span>·</span>
+    <a href="../lessons/0010-redux-thunk-fetch-user.html">الدرس السابق 10</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>12 — فـ production: Express كيقدم الـ React build</strong> (كيفاش نفس الـ server كيقدم الـ API والـ UI).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>08. Handling Payments/03. Stripe Billing Process.vtt</code> (00:33–01:05) — Add credits button, react-stripe-checkout, server never sees card numbers</li>
+  <li id="n2"><code>08. Handling Payments/07. The Payments Component.vtt</code> (00:12–01:01) + <code>08. Stripe Tokens.vtt</code> (00:00–01:05) — Payments component, $5 = 500 cents, test card 4242</li>
+  <li id="n3"><code>08. Handling Payments/05. Stripe API Keys.vtt</code> (00:34–00:57) + <code>06. Env Variables with React.vtt</code> (00:07–01:03) — publishable vs secret key, REACT_APP_ env vars</li>
+  <li id="n4"><code>08. Handling Payments/11. Posting the Stripe Token.vtt</code> (00:00–03:10) — connect, this.props.handleToken(token), 404, POST /api/stripe</li>
+  <li id="n5"><code>08. Handling Payments/12. Post Request Handlers.vtt</code> (00:04–01:10) + <code>13. Creating Charges.vtt</code> (00:31–01:06) — billingRoutes file, stripe npm module exchanges token for charge</li>
+  <li id="n6"><code>08. Handling Payments/14. BodyParser Middleware.vtt</code> (00:13–01:16) — npm install --save body-parser, app.use(bodyParser.json())</li>
+  <li id="n7"><code>08. Handling Payments/16. Finalizing a Charge.vtt</code> (00:00–04:39) — stripe.charges.create 500 cents, promise, async/await, charge object</li>
+  <li id="n8"><code>08. Handling Payments/17. Adding Credits to a User.vtt</code> (00:00–07:26) — credits Number default 0, +5, req.user.save(), res.send(user)</li>
+  <li id="n9"><code>08. Handling Payments/19. Route-Specific Middlewares.vtt</code> (00:00–11:39) — requireLogin.js, req/res/next, 401, second argument, not invoked</li>
+  <li id="n10"><code>08. Handling Payments/20. Displaying Credit Quantity.vtt</code> (00:19–01:13) + <code>21. Updating Credits.vtt</code> (00:27–00:46) — header shows this.props.auth.credits, /api/current_user returns credits</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

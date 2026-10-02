@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 18 — Webhooks: ngrok و encoding ديال survey data</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 18 · Course sections 12</p>
+  <h1>Webhooks: ngrok و encoding ديال survey data</h1>
+  <p class="dek">ملي user كي clicki على link فـ email، الـ SendGrid باغية توصلنا بالخبرة — وهاد الدرس كيربط بيناتها وبين الـ Express server ديالنا فـdevelopment، وكيساوب الـ link اللي فيه survey id و choice.</p>
+  <p class="meta">~12 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تقدر توقف webhook كامل فـlocal: tunnel بـngrok، SendGrid config، و link ديال email م encode بـsurvey id + choice — يعني أول vote كتوصل للسيرفر ديالك بلا ما تdeployi والو. هادي هي العملية اللي كتقلب "رسالة مبعوثة" لـ"data داخل الـ DB".
+</div>
+
+<h2>1 · webhook: سيرفر كيفاش كيهضر مع سيرفر</h2>
+<p>العلاقة ساهلة: <strong>webhook = سيرفر كيصيفط معطيات لسيرفر آخر حيت وقع شي حدث عندو</strong>. عندنا، الـ SendGrid كيسجل كل <code>click</code> فـemail ديالنا، ومن بعد كيصيفط لينا رسالة فيها شكون clicka و على شنو.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>نقطتين خاصك تعرفهم قبل ما نكتبو أي كود:</p>
+<ul>
+  <li><strong>ماشي كل click = request.</strong> الـ SendGrid كيجمع الأحداث وكيصيفط <strong>bulk واحد كل شي كاع 30 ثانية ولا دقيقة</strong> — يعني الـ <code>req.body</code> ديالنا غادي يكون <strong>array ديال objects</strong>، ماشي event وحيد.<span class="cite"><a href="#n2">[2]</a></span></li>
+  <li><strong>فـproduction كلشي ساهل:</strong> الـ SendGrid غير كي POST على domain عام بحال <code>email.com</code> ولا <code>your_app.herokuapp.com</code>. أما فـdevelopment فالسيرفر ديالنا جالس على <code>localhost:5000</code>، وهو عنوان <strong>خاص بجهازنا وحدنا</strong> — الـ SendGrid عمرو ما غادي يوصل ليه.<span class="cite"><a href="#n2">[2]</a></span></li>
+</ul>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">SendGrid<small>click event</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">public URL<small>tunnel</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">localhost:5000<small>Express route</small></div>
+  </div>
+</div>
+<p>المشكلة هي كيفاش نوجدوا الـ public URL بلا ما نdeployi. الجواب: <strong>tunnel</strong>.</p>
+
+<h2>2 · ngrok: الـ tunnel ديال development</h2>
+<p>الكورس بدا بـLocalTunnel، ولكن الـ ملاحظة الرسمية كتقول بـ<strong>هاد الخدمة ولات buggy ومشكلة</strong>، والبديل المعتمد هو <strong>Ngrok</strong>.<span class="cite"><a href="#n3">[3]</a></span> التسجيل و التنصيب:</p>
+<pre><code># 1) account: https://dashboard.ngrok.com/signup
+# 2) download: https://ngrok.com/download
+ngrok config add-authtoken YOUR_AUTHTOKEN   # مرة وحدة
+ngrok http 5000                             # كل ما تحل الـ dev</code></pre>
+<p><strong>التفصيلة اللي كتقتل:</strong> كل ما تسد وتعاود تشغّل <code>ngrok http 5000</code>، الـ address <strong>تبدل</strong> — وخاصك ترجع تبدّلها فـSendGrid كل مرة.<span class="cite"><a href="#n3">[3]</a></span> غادي نشوفو فين بالضبط.</p>
+<p>فالـ SendGrid dashboard: <code>Settings</code> &rarr; <code>Mail Settings</code> &rarr; <code>Event Notification</code>:</p>
+<ul>
+  <li>تفعّل <strong>Event Notification</strong> وحط فـ<strong>HTTP POST URL</strong>: <code>https://YOUR_TUNNEL_ADDRESS/api/surveys/webhooks</code> — <strong>خاص يكون الـ route كامل</strong>، ماشي غير الـ domain.<span class="cite"><a href="#n4">[4]</a></span></li>
+  <li>قبل كلشي، زيد route مؤقت فـExpress كي <code>console.log(req.body)</code> وكيرجع object خاوي باش ما نخلّيوش الـ request معلّق، ومن بعد ضغط <strong>Test Your Integration</strong>.<span class="cite"><a href="#n4">[4]</a></span></li>
+  <li>من بعد دوز على <strong>clicked</strong> checkbox وفعّل الـ webhook كامل حتى تشوف <strong>Active</strong> — غير من بعد، أي email جديد هو اللي فيه tracking.<span class="cite"><a href="#n5">[5]</a></span></li>
+  <li>الـ body اللي غادي يجي: <strong>array</strong>، كل عنصر عندو <code>event</code> (bounce, spam report, click…)، وحنا غير <code>event: "click"</code> اللي كيهمنا، وفيه <code>email</code> + <code>url</code>.<span class="cite"><a href="#n5">[5]</a></span></li>
+</ul>
+<p>وحدة أخيرة: الـ SendGrid <strong>ما كتقبلش جوج webhook URL</strong> (واحد للdev وواحد للproduction) — داكشي علاش فـdeploy خاصك ترجع تبدل الـ URL، ولا تدير account تاني.<span class="cite"><a href="#n5">[5]</a></span></p>
+
+<h2>3 · encoding: فين كنخبعو survey id و choice؟</h2>
+<p>والي عندنا فـالـ event: نوع الـ click، الـ email، و الـ URL. <strong>المفقود: شكون survey؟ وشنو الجواب — yes ولا no؟</strong> حتى واحد ما كيتكلم.<span class="cite"><a href="#n6">[6]</a></span></p>
+<p>الحل ماشي فـevent، الحل فـ<strong>الـ link راسو</strong>. كانو users كيمشيو لـ<code>/api/surveys/thanks</code> ديما نفسو — بدّلناه فـtemplate ديال الـ email:</p>
+<pre><code>/api/surveys/&lt;surveyId&gt;/yes     # الزر الأيمن
+/api/surveys/&lt;surveyId&gt;/no      # الزر الثاني</code></pre>
+<p>يعني <strong>كن encodeو الـ survey id و الـ choice داخل الرابط</strong> اللي الـ user كي clicki عليه، ونبقى على نفس الـ namespace ديال <code>/surveys</code>.<span class="cite"><a href="#n6">[6]</a></span> ملي الـ SendGrid يرجع لينا، الـ <code>url</code> فيها كامل المعلومات وحنا غير نقلبوها.</p>
+<p>ملاحظة صغيرة: إلا clickiti على الزر، غادي توصل لـ<code>Cannot GET</code> حيت الـ route بعد ما تزادت — هادي غادي نصلحوها فالدرس الجاي ديال النتائج، ماشي دابا.<span class="cite"><a href="#n6">[6]</a></span></p>
+
+<h2>4 · pre-processing: الـ pipeline قبل ما نمسسو الـ DB</h2>
+<p>الـ array اللي كتجي <strong>قذرة بzentwaً</strong>، وحنا خاصنا نصفّيوها قبل ما نهتمو بيها:<span class="cite"><a href="#n7">[7]</a></span></p>
+<ul>
+  <li><strong>duplicates:</strong> user كي clicki مرتين بجوج فثانية وحدة → جوج events متطابقين (email + url نيشان)، وخافنا race condition.</li>
+  <li><strong>أخطاء ديال config:</strong> شي حد ممكن يزيد أحداث أخرى (bounce…) فـSendGrid → objects بلا <code>url</code>.</li>
+  <li><strong>روابط برّا:</strong> click على terms of service ولا homepage → <code>url</code> ماشي ديال الـ survey.</li>
+</ul>
+<p>الخطوات (كولشي كيمشي بـ<code>map</code> فوق <code>req.body</code>):<span class="cite"><a href="#n8">[8]</a></span></p>
+<ol>
+  <li>نخرجو <strong>pathname</strong> من الـ URL (دومين ما كيهمناش) بـ<code>new URL(event.url).pathname</code>.</li>
+  <li>نجربو نستخرجو <code>surveyId</code> + <code>choice</code> بـ<strong>path-parser</strong>: <code>p.test(pathname)</code> مع pattern <code>/api/surveys/:surveyId/:choice</code>.</li>
+  <li>نرجعو object فيه <code>email</code>, <code>surveyId</code>, <code>choice</code> — إلا ما لقاش match، الـ <code>test</code> كيرجع <code>null</code> وكن discardو الـ record.<span class="cite"><a href="#n9">[9]</a></span></li>
+  <li>نحيدو الـ <code>undefined</code> اللي خلا الـ map، ونحيدو الـ duplicates.</li>
+</ol>
+<pre><code>npm install --save lodash path-parser</code></pre>
+<p>الـ imports: الـ lodash بالـ convention ديال <code>_</code>، و <code>URL</code> جاي من Node نفسو (ماعندكش خاصو تنصبو). إلا شفتي <code>TypeError: Path is not a constructor</code>، الإصلاح هو <code>const { Path } = require('path-parser');</code>.<span class="cite"><a href="#n10">[10]</a></span><span class="cite"><a href="#n11">[11]</a></span></p>
+<div class="callout">
+  <span class="label">Pitfall</span>
+  ما تديرش destructuring على نتيجة <code>p.test()</code> مباشرة (<code>const { surveyId } = p.test(...)</code>) — إلا رجع <code>null</code> غادي تقرا property من null ويطيح error. خلي <code>match</code> الأول وتأكد منها.<span class="cite"><a href="#n9">[9]</a></span>
+</div>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> علاش خاصنا tunnel بحال ngrok فـdevelopment؟</p>
+  <button class="opt">كيتسنا حتى يفيق الـ admin ديالو</button>
+  <button class="opt" data-correct>ماعندو حتى access للعنوان localhost ديالك</button>
+  <button class="opt">خاصو يخلص قبل كل request بوحدو</button>
+  <button class="opt">ماكيقبلش data ديال النوع JSON أصلا</button>
+  <p class="explain"><code>localhost:5000</code> عنوان خاص بجهازك وحدك، والـ SendGrid كيحتاج domain عام باش يوصل — داكشي علاش كنصاوبو tunnel كيحول الطلب من public URL للسيرفر ديالنا.<span class="cite"><a href="#n2">[2]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> علاش خاص الـ link اللي فالـ email يحمل survey id و choice؟</p>
+  <button class="opt">باش الـ browser يعرض الصفحة كاملة</button>
+  <button class="opt">باش نقصو عدد requests اللي كيجيو</button>
+  <button class="opt" data-correct>لأن الـevent ما فيهش survey id</button>
+  <button class="opt">باش نعرفو شكون صاوب الـ survey</button>
+  <p class="explain">الـ click event فيه غير <code>email</code> و <code>url</code> — والـ email وحده ما كيكفيش (نفس user ممكن يكون فجوج surveys). الترميز داخل الرابط هو اللي كيعطينا المعلومات.<span class="cite"><a href="#n6">[6]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> شنو كيدير <code>p.test(pathname)</code> إلا ما لقاش survey id و choice؟</p>
+  <button class="opt" data-correct>يرجع null و كنديرو discard للrecord</button>
+  <button class="opt">يرجع object خاوي و كنكملو عادي</button>
+  <button class="opt">كيقذف error و كوقف السيرفر كامل</button>
+  <button class="opt">يرجع false و كنزيدو record للقائمة</button>
+  <p class="explain">الـ <code>null</code> هي الطريقة اللي كيخدم بيها الـ path-parser باش يقول "هاد الـ path ماشي ديالنا" — وحنا كنستعملوها باش نصفّيو الروابط اللي برّا الـ survey.<span class="cite"><a href="#n9">[9]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> مراجعة: فـ Law #1 ديال الكورس، شكون الوسيط الوحيد بين React و MongoDB؟</p>
+  <button class="opt">الـ client ديال MongoDB</button>
+  <button class="opt">الـ Redux store ديالنا</button>
+  <button class="opt">الـ Google OAuth provider</button>
+  <button class="opt" data-correct>الـ Express API وحدو</button>
+  <p class="explain">Law #1: الـ React عمرو ما كيتكلم مع MongoDB مباشرة — كلشي كيمشي React &rarr; Express API &rarr; MongoDB.<span class="cite"><a href="#n12">[12]</a></span></p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0007-webhook-results.html">المرجع 0007</a><span>·</span>
+    <a href="../lessons/0017-post-survey-redirect.html">الدرس 17</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>0019 — من webhook لنتائج: lodash chain و mongoose queries</strong> (نفس القسم 12، المعالجة و التسجيل).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>12. Handling Webhook Data/01. Feedback with Webhooks.vtt</code> (02:01–02:25) — webhook definition: one server communicates to another because of an event; SendGrid click tracking</li>
+  <li id="n2"><code>12. Handling Webhook Data/02. Webhooks in Development.vtt</code> (01:21–01:56, 02:37–05:01) — bulk request every ~30s or a minute, production domain works, localhost is machine-specific</li>
+  <li id="n3"><code>12. Handling Webhook Data/05. Ngrok setup instead of LocalTunnel.html</code> — signup/download links, <code>ngrok config add-authtoken</code>, <code>ngrok http 5000</code>, address changes on restart, production URL note</li>
+  <li id="n4"><code>12. Handling Webhook Data/06. Testing Webhooks.vtt</code> (00:36–02:44, 03:10–03:57) — Settings &rarr; Mail Settings &rarr; Event Notification, full route in HTTP POST URL, debug route, Test Your Integration</li>
+  <li id="n5"><code>12. Handling Webhook Data/07. Finalizing Webhook Setup.vtt</code> (00:34–02:36, 02:46–04:17) — array body, event types, click has email+url, clicked checkbox + Active, single webhook URL only</li>
+  <li id="n6"><code>12. Handling Webhook Data/08. Encoding Survey Data.vtt</code> (00:37–03:29, 04:08–05:29) — event lacks survey identity, encode surveyId + choice in link, keep /surveys namespace</li>
+  <li id="n7"><code>12. Handling Webhook Data/09. Dirty Data from Webhooks.vtt</code> (01:00–03:53, 03:59–06:46) — duplicate clicks, non-click events, foreign URLs, defensive processing</li>
+  <li id="n8"><code>12. Handling Webhook Data/10. Processing Pipeline.vtt</code> (04:06–07:49) — map → extract pathname → extract surveyId/choice → discard → compact → remove duplicates</li>
+  <li id="n9"><code>12. Handling Webhook Data/13. Code Cleanup.vtt</code> (00:23–01:06, 04:02–04:33) — p.test returns null on no match, return {email, surveyId, choice}, no destructuring on null</li>
+  <li id="n10"><code>12. Handling Webhook Data/11. Parsing the Route.vtt</code> (00:10–00:48, 01:27–02:56, 04:06–06:18) — lodash + path-parser install, _ convention, URL built-in module, <code>new Path('/api/surveys/:surveyId/:choice')</code></li>
+  <li id="n11"><code>12. Handling Webhook Data/12. TypeError Path is not a constructor error.html</code> — fix: <code>const { Path } = require('path-parser');</code></li>
+  <li id="n12"><code>02. Server Side Architecture/01. Application Architecture.vtt</code> (01:29–02:43) — Law #1, React never talks to MongoDB directly (درس 1.1)</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

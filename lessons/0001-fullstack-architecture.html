@@ -12,7 +12,7 @@
 <header class="masthead">
   <p class="kicker">الدرس 1 · Course sections 01–02</p>
   <h1>شكون كيتكلم مع شكون: Fullstack Architecture</h1>
-  <p class="dek">قبل ما نكتبو سطر واحد ديال الكود، خاصنا نعرفو routing ديال الداتا فهاد التطبيق: browser &rarr; Express &rarr; MongoDB &rarr; يرجع.</p>
+  <p class="dek">قبل ما نكتبو سطر واحد ديال الكود، خاصنا نعرفو routing ديال الداتا فهاد التطبيق: browser → Express → MongoDB → يرجع.</p>
   <p class="meta">~10 دقايق · Quiz ديال retrieval فالأخر</p>
 </header>
 
@@ -37,33 +37,35 @@
 <p>أما المسالة الكبيرة: <strong>الـ React "ماعندو ما يورّي" بلا data</strong> — بغا يوري list ديال surveys؟ خاصو يسول على data من شي حد. وهنا جاي القانون ديال الكورس:</p>
 <div class="callout">
   <span class="label">Law #1</span>
-  <strong>الـ React NEVER كيتكلم مع MongoDB مباشرة.</strong> كلشي كيمشي فهاد الطريق: React &rarr; <strong>Express API</strong> &rarr; MongoDB. الـ Express هو الوسيط الوحيد بيناتهم.<span class="cite"><a href="#n3">[3]</a></span>
+   <strong>الـ React NEVER كيتكلم مع MongoDB مباشرة.</strong> كلشي كيمشي فهاد الطريق: React → <strong>Express API</strong> → MongoDB. الـ Express هو الوسيط الوحيد بيناتهم.<span class="cite"><a href="#n3">[3]</a></span>
 </div>
 <div class="flow">
   <div class="flow-row">
     <div class="flow-node">React<small>UI + fetch data</small></div>
-    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-arrow">→</div>
     <div class="flow-node">Express API<small>route handlers</small></div>
-    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-arrow">→</div>
     <div class="flow-node">MongoDB<small>source of truth</small></div>
   </div>
 </div>
+<p class="mono">كيفاش تقرا هاد المخطط: قرا من اليسار لليمين — React كيطلب الداتا، Express كيجاوب، MongoDB كيخزن.</p>
 <div class="callout analogy">
   <span class="label">بأي مثال</span>
   تخيّل MongoDB بحال أرشيف مغلق: Express هو الموظف اللي عندو المفاتيح، وReact كيبقى فالباب كيتسنى. كاع طلبات الداتا كيمشيو من عندو — حتى واحد ما كيدخل للأرشيف مباشرة.
 </div>
-<p>دابا عندك backend experience — فهاد المشروع، الـ Express هو غير <strong>framework فوق الـ Node</strong> عطيك routing و middleware.<span class="cite"><a href="#n4">[4]</a></span></p>
+<p>الـ Express ماشي سيرفر بوحدو — هو طبقة خفيفة فوق الـ Node كتعاونك تعرف الـ routes وتنظم الـ middleware، والـ Node هو اللي كيبقى خدام وكيسمع للـ requests.<span class="cite"><a href="#n4">[4]</a></span> علاش هادي مهمة ملي تخدم لـclient: غادي تشرح ليه بجملة وحدة علاش زدتي Express فوق Node.</p>
 
 <h2>3 · الـ route handler = watcher</h2>
 <p>كل ما كتبتي <code>app.get('/api/surveys', ...)</code>، كتسنا <strong>واحد route handler</strong>: الـ <code>app</code> object هو الـ server اللي خدام، و <code>.get</code> كتقول لـ Express "سنتيني requests بـ GET method". الـ HTTP methods غير <strong>conventions ديال intent</strong>: GET = جيب، POST = صيفط، PUT/PATCH = بدل، DELETE = مسح.<span class="cite"><a href="#n5">[5]</a></span></p>
 <p>شوف الـ round-trip ديال أي <code>GET /api/surveys</code> من الأول حتى للفين:</p>
 <ol class="seq">
   <li><span class="from">Browser</span> <span class="arrow">→</span> <span class="to">Server</span> <span class="what">GET /api/surveys</span></li>
-  <li><span class="from">Server</span> <span class="arrow">→</span> <span class="to">route handler</span> <span class="what">match ديال المسار</span></li>
-  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">MongoDB</span> <span class="what">query ديال surveys</span></li>
-  <li><span class="from">MongoDB</span> <span class="arrow">→</span> <span class="to">Express</span> <span class="what">records ديال results</span></li>
-  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">Browser</span> <span class="what">response فيها JSON</span></li>
+  <li><span class="from">Server</span> <span class="arrow">→</span> <span class="to">route handler</span> <span class="what">app.get('/api/surveys')</span></li>
+  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">MongoDB</span> <span class="what">Survey.find({})</span></li>
+  <li><span class="from">MongoDB</span> <span class="arrow">→</span> <span class="to">Express</span> <span class="what">[{ title, ... }] survey docs</span></li>
+  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">Browser</span> <span class="what">res.send(surveys)</span></li>
 </ol>
+<p class="mono">كيفاش تقرا هاد المخطط: كل سطر فيه شكون صيفط لمن وشنو بالضبط — تبع الأرقام بالترتيب.</p>
 <pre><code>npm init                 # -&gt; package.json, "central hub" ديال المشروع
 npm install --save express</code></pre>
 <p class="mono" style="font-size:0.8rem;color:var(--ink-faint)">المرجع: <a href="../reference/0001-emaily-architecture.html">Reference 0001 — Architecture &amp; User Flow</a></p>

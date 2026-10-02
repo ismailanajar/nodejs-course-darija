@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 6 — Dev vs Prod: keys و environment variables</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 6 · Course sections 05</p>
+  <h1>Dev vs Prod: keys و environment variables</h1>
+  <p class="dek">الـ OAuth خدام محليا وحان وقت الـ deploy: جوج sets ديال keys، resources منفصلة، و environment variables اللي كيخلي الكود يعرف شكون هو.</p>
+  <p class="meta">~12 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تقدر تحط أي app ديالك فـ production بلا خوف: <strong>set ديال keys خاص بالـ dev</strong>، database و Google project منفصلين، و <strong>environment variables</strong> فوق Heroku/Render — وحتى اللابتوب ديالك ملي يتسرق، credentials ديال users كيبقاو بعيدة عليه.
+</div>
+
+<h2>1 · جوج sets ديال keys، ماشي وحدة</h2>
+<p>فـ <code>config/keys.js</code> ديالنا كامل الـ API keys: Google client ID و secret، المفتاح ديال cookies، و MongoDB URI — وهو الملف اللي كيتصاوب منو الـ <code>require('./config/keys')</code> فكل بلايص. المشكل: دابا عندنا <strong>set وحدة فقط</strong> ديال هاد الـ keys، والكورس كيقول بلي هادا غادي يجيب لينا مشاكل.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>الحل: <strong>جوج sets منفصلين</strong> — set ديال development للّابتوب ديالك (Mongo ديالك، Google API ديالك، cookies ديالك)، و set آخر تماما ديال production اللي هو الـ deployment ديالنا فوق Heroku.<span class="cite"><a href="#n1">[1]</a></span> علاش؟ جوج أسباب:</p>
+<ul>
+  <li><strong>الأمان:</strong> الـ production keys كيتسجلو بعيدا على خوادم Heroku، والـ dev keys كيبقاو غير على اللابتوب. اللابتوب ممكن يتسرق، وفوقو ملف نصّي فيه كامل الـ keys — اللي كيولّيه القدرة على MongoDB ديالك و Google API و cookies ديال users. بصح credentials ديال dev، نمسحوها ونبدلوها؛ أما credentials ديال production فمتبقاوش فراس اللابتوب.<span class="cite"><a href="#n1">[1]</a></span></li>
+  <li><strong>جوج databases:</strong> الـ production database خاصها تكون نظيفة فيها غير data ديال users وكيتتعامل بيها بحذر دائم. أما dev فنقدرو نزيدو records ونمسحو collections ونبدلو كلشي بلا خوف نكسرو شي production data.<span class="cite"><a href="#n1">[1]</a></span></li>
+</ul>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">Laptop / dev<small>config/dev.js (git-ignored)</small></div>
+    <div class="flow-arrow">vs</div>
+    <div class="flow-node">Heroku / production<small>process.env (config/prod.js)</small></div>
+  </div>
+</div>
+
+<h2>2 · resources منفصلة من البداية</h2>
+<p>التقسيم ماشي غير ديال الكود: خاصك <strong>resources حقيقيين منفصلين</strong>. فـ MongoDB Atlas نصاوبو database جديد (سميناه <code>emaily-prod</code>، والديال dev هو <code>emaily-dev</code> اللي كيبان فـ dashboard ديالك) مع database user جديد بـ credentials مختلفة على ديال dev.<span class="cite"><a href="#n2">[2]</a></span></p>
+<p>وفـ Google Developer Console، نصاوبو <strong>project جديد</strong> <code>emaily-prod</code> باش نعزلو الـ credentials: نفس الـ Google Console كيتسجل فيه الـ OAuth ديال dev والـ ديال production، والفصل كيضمن بلي ملي تبدل شي حاجة فـ dev، الـ production ما تتحركلش.<span class="cite"><a href="#n2">[2]</a></span> ملاحظة عملية: الـ project الجديد ما كيتصاوبش فوري — خاصك تستنا حتى يكمل الـ creation، وإلا ممكن تلقى راسك كتعدّل على <code>emaily-dev</code> بالغلط.<span class="cite"><a href="#n2">[2]</a></span></p>
+<p>وأول ما توصل لـ OAuth credentials ديال production: <strong>authorized JavaScript origin</strong> و <strong>authorized redirect URI</strong> خاصهم يكونو domain ديال production ماشي <code>localhost:5000</code>. باش تلقى العنوان ديالك: شغّل <code>heroku open</code> من terminal وخذ العنوان من address bar، ومن بعد زيد عليه <code>/auth/google/callback</code> للـ redirect URI.<span class="cite"><a href="#n3">[3]</a></span></p>
+
+<h2>3 · <code>NODE_ENV</code>: كيفاش الكود كيختار</h2>
+<p>دابا <code>keys.js</code> ما عادش كيخزّع raw keys — كيولّى <strong>كيقرر</strong> شكون هو. الـ variable <code>process.env.NODE_ENV</code> هي اللي كتجاوب: فوق Heroku كيتصاوب تلقائيا للسلسلة <code>'production'</code>، أما فوق اللابتوب فما كت يكونش <code>'production'</code>، وهكذا الكود كيرجع ليك الملف الصحيح.<span class="cite"><a href="#n4">[4]</a></span></p>
+<pre dir="ltr"><code>// config/keys.js — logic فقط، بلا raw keys
+if (process.env.NODE_ENV === 'production') {
+  module.exports = require('./prod');   // قيم من process.env
+} else {
+  module.exports = require('./dev');    // قيم حقيقية، ما كتتمشّنش
+}</code></pre>
+<p>أما <code>prod.js</code> كيexport <strong>نفس property names</strong> بالضبط (باش أي ملف ديال المشروع يقدر يستعملهم بلا تغيير)، ولكن القيم كيجيو من environment variables.<span class="cite"><a href="#n4">[4]</a></span> والـ convention: environment variables بالحروف الكبيرة والتشرطة السفلية — <code>GOOGLE_CLIENT_ID</code>، <code>GOOGLE_CLIENT_SECRET</code>، <code>MONGO_URI</code>، <code>COOKIE_KEY</code>.<span class="cite"><a href="#n4">[4]</a></span></p>
+<p>وأخيرا تقسيم الـ git: <code>dev.js</code> كيتضاف لـ <code>.gitignore</code> (ما كيتصدّش)، أما <code>keys.js</code> و <code>prod.js</code> <strong>كيت-commitو</strong> — وإلا ما commitinash <code>prod.js</code>، الـ Heroku server غادي يقلب على الملف ملي يخدم و ما يلقاش ويرمي error ضخم.<span class="cite"><a href="#n4">[4]</a></span></p>
+
+<h2>4 · environment variables فوق المنصة + قاعدة الـ HTTPS</h2>
+<p>فين كيتصايبو القيم ديال <code>process.env</code>؟ فوق المنصة ديال deployment. فـ <strong>Heroku</strong>: dashboard ديال الـ app &rarr; tab ديال <strong>Settings</strong> &rarr; config variables (key/value pairs).<span class="cite"><a href="#n5">[5]</a></span> وفـ <strong>Render</strong> (بديل Heroku بلا free tier): sidebar &rarr; <strong>Environment</strong> &rarr; زر <strong>Add Environment Variable</strong>، وتزيد pair pair: <code>COOKIE_KEY</code> (أي string عشوائي)، <code>GOOGLE_CLIENT_ID</code> و <code>GOOGLE_CLIENT_SECRET</code> من Google Project Dashboard &rarr; APIs and Services &rarr; Credentials &rarr; OAuth 2.0 Client ID، و <code>MONGO_URI</code>.<span class="cite"><a href="#n6">[6]</a></span></p>
+<p>وآخر مصيبة كتجي بعد الـ deploy: <strong>redirect_uri mismatch</strong>. Google كيشوف <code>http://...herokuapp.com</code> بينما نحنا سجلنا <code>https://...</code> فـ authorized redirect URI — يعني شي حاجة كترجّع الـ flow لـ HTTP بدل HTTPS.<span class="cite"><a href="#n7">[7]</a></span> القاعدة اللي خاصك تحطها فراسك: <strong>كلشي مربوط بـ auth خاصو يكون HTTPS</strong> حيت كيتصرف مع بيانات حساسة.<span class="cite"><a href="#n7">[7]</a></span></p>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> علاش خاصك جوج sets ديال keys (dev + production) ماشي set وحدة؟</p>
+  <button class="opt">باش الـ git يخفي كامل الـ files ديال المشروع</button>
+  <button class="opt" data-correct>باش credentials ديال production يبقاو بعيدة على اللابتوب ديالنا</button>
+  <button class="opt">باش الـ server يصاوب جوج builds لكل environment ديالو</button>
+  <button class="opt">باش نزيدو عدد الـ environment variables اللي فوق Heroku</button>
+  <p class="explain">الـ production keys كيتسجلو بعيدا على خوادم Heroku والـ dev keys كيبقاو غير على اللابتوب — وهكذا حتى لو تسرق اللابتوب وشاف الملف، credentials ديال الـ users ما توصلش ليه.<span class="cite"><a href="#n1">[1]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> فوق Atlas و Google Console، شنو خاصك تدير قبل ما تدير الـ deploy ديال production؟</p>
+  <button class="opt">نستعملو نفس database و نفس credentials ديال dev</button>
+  <button class="opt">نمسحو كامل database ديال dev باش تبقى وحدة</button>
+  <button class="opt">نعطيو كامل الـ dev keys للمستخدمين ديال production</button>
+  <button class="opt" data-correct>نصاوبو database جديد و Google project جديد منفصل</button>
+  <p class="explain">التقسيم كيضمن بلي نقدرو نكسّرو الـ dev ميت مرات بلا ما نأثرو على production data: database جديد <code>emaily-prod</code> بـ credentials جديدة، و Google project جديد <code>emaily-prod</code>.<span class="cite"><a href="#n2">[2]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> كيفاش الكود ديالنا كيعرف واش راه خدام فـ production؟</p>
+  <button class="opt" data-correct>من خلال process.env.NODE_ENV اللي كيساوي production</button>
+  <button class="opt">من خلال hostname ديال السيرفر كيتصاوب</button>
+  <button class="opt">من خلال package.json اللي فيه الاسم</button>
+  <button class="opt">من خلال port اللي كيعطيه Heroku</button>
+  <p class="explain">فوق Heroku الـ <code>NODE_ENV</code> كيتصاوب تلقائيا للسلسلة <code>'production'</code>، و<code>keys.js</code> كيدير branch على هاد الشرط باش يرجع <code>prod.js</code> ولا <code>dev.js</code>.<span class="cite"><a href="#n4">[4]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> مراجعة: من الدرس 1.1، ملي الـ React بغا data ديال الـ surveys، مع شكون كيتكلم؟</p>
+  <button class="opt">كيمشي مباشرة مع MongoDB حيت أسرع</button>
+  <button class="opt">كيمشي للسيرفر بلا ما يسول Express</button>
+  <button class="opt" data-correct>كيمشي للـ Express API وهو الوسيط</button>
+  <button class="opt">كيمشي لـ Passport باش ياخد الداتا</button>
+  <p class="explain">Law #1: الـ React عمرو ما كيتكلم مع MongoDB مباشرة — كلشي كيمشي React &rarr; Express API &rarr; MongoDB. وحتى فـ production، نفس الطريق كتبقى هي نفسها.</p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0001-emaily-architecture.html">المرجع 0001</a><span>·</span>
+    <a href="0005-passport-session-cookies.html">الدرس السابق 5</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>7 — الـ Client: separate server و CRA proxy</strong> (القسم 06، عملي).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>05. Dev vs Prod Environments/01. Dev vs Prod Keys.vtt</code> — one set of keys today, should be two separate sets (dev keys on laptops, production keys stored on Heroku), plus two separate MongoDB databases so dev can be torn down without breaking production data</li>
+  <li id="n2"><code>05. Dev vs Prod Environments/03. Generating Production Resources.vtt</code> — segregate resources: new Mongo database emaily-prod with its own database user, new Google API project emaily-prod, wait for project creation before editing</li>
+  <li id="n3"><code>05. Dev vs Prod Environments/04. Determining Environment.vtt</code> — authorized JS origin and redirect URI use your own Heroku domain (grab it with heroku open), keys.js decides via process.env.NODE_ENV</li>
+  <li id="n4"><code>05. Dev vs Prod Environments/05. Version Control Scheme.vtt</code> — NODE_ENV is set to the string production on Heroku, else branch exports dev.js, prod.js values pulled from process.env with ALL_CAPS convention, gitignore dev.js but commit keys.js and prod.js</li>
+  <li id="n5"><code>05. Dev vs Prod Environments/07. [Heroku] Production Environment Variables.vtt</code> — Heroku dashboard, app, Settings tab, config variables as key-value pairs</li>
+  <li id="n6"><code>05. Dev vs Prod Environments/06. [Render] Production Environment Variables.html</code> — Render Environment tab, Add Environment Variable: COOKIE_KEY (any string), GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET from Google Project Dashboard, APIs and Services, Credentials</li>
+  <li id="n7"><code>05. Dev vs Prod Environments/08. Fixing Proxy Issues.vtt</code> — redirect_uri mismatch after deploy: Google saw http:// while the authorized redirect URI was registered as https://, auth flows must use HTTPS</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

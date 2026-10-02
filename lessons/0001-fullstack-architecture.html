@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 1.1 — شكون كيتكلم مع شكون: Fullstack Architecture</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 1 · Course sections 01–02</p>
+  <h1>شكون كيتكلم مع شكون: Fullstack Architecture</h1>
+  <p class="dek">قبل ما نكتبو سطر واحد ديال الكود، خاصنا نعرفو routing ديال الداتا فهاد التطبيق: browser &rarr; Express &rarr; MongoDB &rarr; يرجع.</p>
+  <p class="meta">~10 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  فـ10 دقايق، غادي تقدر تشرح لـclient (ولراسك) architecture ديال أي fullstack app: شكون كيخدم مع شكون، و علاش React عمرو ما كيتكلم مع MongoDB مباشرة. هادي هي المسالة اللي كتبدا بيها كل freelance project.
+</div>
+
+<h2>1 · اللي غادي نبنيو: Emaily</h2>
+<p>الكورس كامل = <strong>مشروع واحد</strong> اسمو <strong>Emaily</strong>: تطبيق ديال feedback collection.<span class="cite"><a href="#n1">[1]</a></span> الـ flow ديالو:<span class="cite"><a href="#n2">[2]</a></span></p>
+<ol>
+  <li>الـ product owner كيتسجل بـ <strong>Google OAuth</strong> (بلا email + password).</li>
+  <li>كيشري <strong>credits</strong> بـ Stripe — كل survey كيصرف credit.</li>
+  <li>كيصاوب <strong>survey</strong> (title, subject, recipients).</li>
+  <li>الـ recipients كي clickaw على link فـ email وجاو بـ feedback.</li>
+  <li>الـ feedback كيجي للسيرفر بـ <strong>webhook</strong>، وكيتسجل فـ DB.</li>
+  <li>الـ owner كيشوف الـ results والرصيد ديال credits فـ dashboard.</li>
+</ol>
+
+<h2>2 · القاعدة ديال الـ architecture</h2>
+<p>فينما مشا الـ user لـ domain ديالنا، السيرفر كيرجع ليه <strong>HTML document + JavaScript files</strong> اللي فيهم الـ React app. هاد الـ React app هو اللي كيرسم الـ UI.<span class="cite"><a href="#n3">[3]</a></span></p>
+<p>أما المسالة الكبيرة: <strong>الـ React "ماعندو ما يورّي" بلا data</strong> — بغا يوري list ديال surveys؟ خاصو يسول على data من شي حد. وهنا جاي القانون ديال الكورس:</p>
+<div class="callout">
+  <span class="label">Law #1</span>
+  <strong>الـ React NEVER كيتكلم مع MongoDB مباشرة.</strong> كلشي كيمشي فهاد الطريق: React &rarr; <strong>Express API</strong> &rarr; MongoDB. الـ Express هو الوسيط الوحيد بيناتهم.<span class="cite"><a href="#n3">[3]</a></span>
+</div>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">React<small>UI + fetch data</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">Express API<small>route handlers</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">MongoDB<small>source of truth</small></div>
+  </div>
+</div>
+<p>دابا عندك backend experience — فهاد المشروع، الـ Express هو غير <strong>framework فوق الـ Node</strong> عطيك routing و middleware.<span class="cite"><a href="#n4">[4]</a></span></p>
+
+<h2>3 · الـ route handler = watcher</h2>
+<p>كل ما كتبتي <code>app.get('/api/surveys', ...)</code>، كتسنا <strong>واحد route handler</strong>: الـ <code>app</code> object هو الـ server اللي خدام، و <code>.get</code> كتقول لـ Express "سنتيني requests بـ GET method". الـ HTTP methods غير <strong>conventions ديال intent</strong>: GET = جيب، POST = صيفط، PUT/PATCH = بدل، DELETE = مسح.<span class="cite"><a href="#n5">[5]</a></span></p>
+<pre><code>npm init                 # -&gt; package.json, "central hub" ديال المشروع
+npm install --save express</code></pre>
+<p class="mono" style="font-size:0.8rem;color:var(--ink-faint)">المرجع: <a href="../reference/0001-emaily-architecture.html">Reference 0001 — Architecture &amp; User Flow</a></p>
+
+<h2>4 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> فهاد التطبيق، منين React كياخد الداتا ديال الـ surveys؟</p>
+  <button class="opt">مباشرة مع MongoDB من داخل browser</button>
+  <button class="opt" data-correct>من خلال Express API endpoints فقط</button>
+  <button class="opt">من Google OAuth بعد كل login</button>
+  <button class="opt">من localStorage على computer ديال user</button>
+  <p class="explain">Law #1: الـ React كيسول غير لـ Express API. الـ MongoDB ماعندوش client — الـ Express هو الوحيد اللي كيقرا وكتب.<span class="cite"><a href="#n3">[3]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> شنو كيدير الـ server أول ما الـ user يحل الـ domain ديالنا؟</p>
+  <button class="opt">MongoDB كيرجع HTML/JS files للـ browser</button>
+  <button class="opt">Google OAuth كيرجع HTML/JS للـ browser</button>
+  <button class="opt" data-correct>Express كيرجع HTML/JS files للـ browser</button>
+  <button class="opt">React كيرجع HTML/JS files للـ browser</button>
+  <p class="explain">الـ Express كيرجع HTML + JavaScript files اللي فيهم الـ React app، وهادو كيتولّو فـ browser.<span class="cite"><a href="#n3">[3]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> فـ Express، شنو هو <code>app.get('/api/surveys')</code>؟</p>
+  <button class="opt" data-correct>هادا route handler كيسنى GET requests</button>
+  <button class="opt">هادا database query ديال surveys records</button>
+  <button class="opt">هادا middleware كيتقصى incoming JSON bodies</button>
+  <button class="opt">هادا file server ديال React build</button>
+  <p class="explain">الـ <code>app</code> = server خدام؛ <code>.get</code> = route handler كيسنى incoming GET requests. الـ query ديال DB كيتصاوب من داخل الـ handler، ماشي هو الـ handler نفسو.<span class="cite"><a href="#n5">[5]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> <code>package.json</code> فهاد المشروع شنو هو؟</p>
+  <button class="opt">مكان فيه HTML files بحال handler</button>
+  <button class="opt" data-correct>مركز فيه كامل dependencies ديال project</button>
+  <button class="opt">هادا MongoDB schema كيعرف user records</button>
+  <button class="opt">React component كيعرف layout ديال page</button>
+  <p class="explain">الـ <code>npm init</code> كيصاوب <code>package.json</code>، وهو الـ central hub ديال dependencies ديال المشروع.<span class="cite"><a href="#n4">[4]</a></span></p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0001-emaily-architecture.html">المرجع 0001</a><span>·</span>
+    <a href="../RESOURCES.md">المصادر</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <a href="0002-server-bootstrap.html"><strong>2 — ننشأو السيرفر: npm init و أول route handler</strong></a></p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>01. Course Overview - Start Here!/03. App Overview.vtt</code> — "we're going to be building one single project… a rather large application"</li>
+  <li id="n2"><code>01. Course Overview - Start Here!/04. App User Flow Walkthrough.vtt</code> + <code>05. Tech Stack.vtt</code> — sign in with Google OAuth, pay, campaign, feedback</li>
+  <li id="n3"><code>02. Server Side Architecture/01. Application Architecture.vtt</code> (01:29–02:43) — HTML/JS from server, MongoDB storage, React never talks directly</li>
+  <li id="n4"><code>02. Server Side Architecture/02. Relationship Between Node and Express.vtt</code> — npm init, package.json as central hub, installing Express</li>
+  <li id="n5"><code>02. Server Side Architecture/04. Express Route Handlers.vtt</code> (01:03–02:54) — app object, route handlers, HTTP method conventions</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

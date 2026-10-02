@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الدرس 15 — Redux Form: صياغة survey form بـ custom fields</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">الدرس 15 · الكورس section 11</p>
+  <h1>Redux Form: صياغة survey form بـ custom fields</h1>
+  <p class="dek">دابا السيرفر واجد وباقي غير الـ form: غادي نبنيو survey form بـ Redux Form، ونخرجولك الـ field component من config array بلا تكرار.</p>
+  <p class="meta">~12 دقايق · Quiz ديال retrieval فالأخر</p>
+</header>
+
+<div class="callout">
+  <span class="label">Win ديال هاد الدرس</span>
+  غادي تقدر تصاوب أي form ديال client بـ <strong>Redux Form</strong>: الـ inputs كيتسجلو فـ Redux store بلا reducers مخصوصين، والـ fields كيتولدو من <strong>array وحدة ديال config</strong> — يعني تزيد field جديد فسطر واحد. هادي هي الطريقة اللي كتخدم بيها فـ freelance project بلا ما تعاود تكتب onChange handlers كل مرة.
+</div>
+
+<h2>1 · من السيرفر حتى للفورم</h2>
+<p>فـsections اللي فاتو، صاوبنا الـ route handler ديال <code>POST /api/surveys</code> عند الـ backend. ملي دابا واجد، الفورنت خاصو يعطي الـ user وسيلة باش يكتب الـ survey ديالو — وهادي هي النقطة اللي بدّل بيها الـ focus ديال الكورس للـ client side.<span class="cite"><a href="#n1">[1]</a></span></p>
+<p>أول حاجة كتبان للـ user هي الـ floating button ديال <strong>add</strong> فـ dashboard: كتصاوب بـ materializecss (<code>fixed-action-btn</code>)، بـ classes <code>btn-floating btn-large red</code>، وداخل <code>&lt;i class="material-icons"&gt;add&lt;/i&gt;</code>.<span class="cite"><a href="#n2">[2]</a></span></p>
+<p>ولكن الـ anchor العادي ماشي هو الطريق: كنبدلو بـ <code>Link</code> من <code>react-router-dom</code>، وكنديرو route <code>/surveys/new</code> اللي كيرسم الـ <code>SurveyNew</code> component.<span class="cite"><a href="#n2">[2]</a></span></p>
+
+<h2>2 · شكون كيدير شنو: SurveyNew و SurveyForm</h2>
+<p>البنيان بسيط: <code>SurveyNew</code> هو <strong>container</strong> — هي اللي كتقرر واش نورّيو الـ form ولا الـ review. أما <code>SurveyForm</code> فيه الـ fields والـ labels وحدة بواحدة، وكل field عندها component خاص بيها.<span class="cite"><a href="#n3">[3]</a></span></p>
+<p>وإلا بدينا بلا Redux Form، خاصنا لكل input: <code>onChange</code> handler + action creator + reducer خاص + <code>connect</code> و <code>mapStateToProps</code>. هادي هي العركة اللي كيجيبها Redux Form: كيتولّى على كامل هاد الشي.<span class="cite"><a href="#n4">[4]</a></span></p>
+<pre dir="ltr"><code>npm install redux-form --legacy-peer-deps   # مهم: بلا هاد الـ flag كيعطيك peer deps errors</code></pre>
+<p class="mono" style="font-size:0.8rem;color:var(--ink-faint)">ملاحظة الـ installation جات فملف HTML خاص بالدرس، والتوثيق ديال Redux Form (<code>redux-form.com</code>) موصى بيه بزاف.<span class="cite"><a href="#n5">[5]</a></span></p>
+<p>الاستعمال الأول هو جوج تاجات: <code>reduxForm({ form: 'surveyForm' })</code> اللي كيلبس الـ component، و<code>&lt;Field&gt;</code> اللي كيمثّل كل input. الـ <code>form: 'surveyForm'</code> هو اسم الـ slice اللي غادي يسكن فيه الـ values فـ Redux store.<span class="cite"><a href="#n6">[6]</a></span></p>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node"><code>reduxForm()</code><small>للسورس ديال form</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node"><code>&lt;Field&gt;</code><small>بسميات حقول</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">Redux store<small>state.form.surveyForm</small></div>
+  </div>
+</div>
+
+<h2>3 · من HTML field حتى custom component</h2>
+<p>الـ <code>Field</code> كتقدر تعطيه <code>component</code> prop ديال الـ component ديالك هي. Redux Form من بعد كيصيفط ليه جوج props: <code>input</code> (الـ props ديال input: name, value, onChange…) و <code>meta</code> (الـ حالة: touched, error…). يعني الـ component ديالك كيركّز غير على الشكل، والبيانات كيجيوه من البار.<span class="cite"><a href="#n7">[7]</a></span></p>
+<p>ولكن بلا ما تكتب النص ديال label ميت فـ JSX، تعطيه <code>label</code> prop من برا، وهكذا كتقدر تستعمل نفس الـ <code>SurveyField</code> أربع مرات مع labels مختلفة.<span class="cite"><a href="#n8">[8]</a></span></p>
+<pre dir="ltr"><code>&lt;Field component={SurveyField} name="title" label="Survey Title" type="text" /&gt;</code></pre>
+
+<h2>4 · DRY: fields كاملة من config array</h2>
+<p>النتيجة: أربع حقول بنفس الـ props تقريبا — تكرار خالص. الحل ديال الكورس: تصاوب <strong>array وحدة</strong> فوق الـ component كتمثّل الـ fields كاملة (كل عنصر فيه غير <code>label</code> و <code>name</code>)، ومن بعد تloop عليها بـ <code>_.map</code> ديال Lodash وتخرج لكل عنصر <code>Field</code> وحدة.<span class="cite"><a href="#n9">[9]</a></span></p>
+<pre dir="ltr"><code>const FIELDS = [
+  { label: 'Survey Title',   name: 'title' },
+  { label: 'Subject Line',   name: 'subject' },
+  { label: 'Email Body',     name: 'body' },
+  { label: 'Recipient List', name: 'emails' }
+];
+
+renderFields() {
+  return _.map(FIELDS, ({ label, name }) =&gt; (
+    &lt;Field key={name} component={SurveyField} label={label} name={name} type="text" /&gt;
+  ));
+}</code></pre>
+<p>فقط لا تنسى الـ <code>key</code> (React كيخلصك بـ warning ديال list بلا <code>key</code>، و<code>name</code> هو الأنسب حيت unique بين الـ fields).<span class="cite"><a href="#n9">[9]</a></span> وهكذا زادت field جديد = سطر واحد فوق — لا JSX جديد لا نسخ ديال props.<span class="cite"><a href="#n9">[9]</a></span></p>
+
+<h2>5 · ممارسة retrieval</h2>
+<p style="font-size:0.92rem;color:var(--ink-soft)">جاوب من راسك قبل ما تclicki. ما تقدرش تحل حتى تجاوب — هادي هي القوة اللي كتبني memory.</p>
+
+<div class="quiz">
+  <p class="quiz-q"><span class="num">1.</span> شنو عندو الـ component اللي كتكتب مع <code>reduxForm()</code> و <code>Field</code>؟</p>
+  <button class="opt">غادي يصاوب reducer خاص بـ inputs ديالك</button>
+  <button class="opt" data-correct>غادي ياخد الـ values ديال form كاملة</button>
+  <button class="opt">غادي يصيفط الـ POST request للسيرفر ديالنا</button>
+  <button class="opt">غادي يمسح الـ localStorage ديال الـ browser</button>
+  <p class="explain">Redux Form كيتولّى على تسجيل الـ values فـ store ديالو — بلا reducer خاص وبلا POST آلي: الـ POST غادي نصاوبوه يدوي فـ الدرس 17.<span class="cite"><a href="#n6">[6]</a></span></p>
+
+  <p class="quiz-q"><span class="num">2.</span> مراجعة: من الدرس 1.1، React شكون كيسيلو ملي كيحتاج data ديال surveys؟</p>
+  <button class="opt" data-correct>كيسيلو غير لـ Express API باش ياخد الداتا</button>
+  <button class="opt">كيسيلو مباشرة مع MongoDB علاش غادي يحتاج Express</button>
+  <button class="opt">كيسيلو مع الـ MongoDB بـ middleware ديال Express</button>
+  <button class="opt">كيسيلو مع Google OAuth باش ياخد الداتا ديالو</button>
+  <p class="explain">Law #1: الـ React كيسول غير لـ Express API، والـ MongoDB ما عندهاش client. حتى الـ form values غادي تصدي للسيرفر من نفس الطريق.<span class="cite"><a href="#n1">[1]</a></span></p>
+
+  <p class="quiz-q"><span class="num">3.</span> شنو كيدير <code>Field</code> بـ <code>component={SurveyField}</code> prop؟</p>
+  <button class="opt">كيتسجل الـ errors ديال validation فـ store</button>
+  <button class="opt">كيصاوب الـ label تلقائيا من عنوان الحقل</button>
+  <button class="opt" data-correct>كيصيفط input و meta props للـ component</button>
+  <button class="opt">كينصب الـ component فوق الصفحة ديال review</button>
+  <p class="explain">Redux Form كيصيفط <code>input</code> و <code>meta</code> props للـ component اللي تعطيه؛ أما الـ label فكتعطيه إنت كـ prop.<span class="cite"><a href="#n7">[7]</a></span></p>
+
+  <p class="quiz-q"><span class="num">4.</span> علاش لقّينا الـ fields فـ array اسمو <code>FIELDS</code> قبل ما نصايبو الـ component؟</p>
+  <button class="opt">باش نقدرو نبدلو الـ HTML ديال الصفحة</button>
+  <button class="opt">باش نلغيو الـ react-router من التطبيق كامل</button>
+  <button class="opt">باش ناقصو عدد الـ buttons ديال form</button>
+  <button class="opt" data-correct>باش fields تتزاد من config بلا نسخ</button>
+  <p class="explain">الـ array هي الـ config: كل field = object فيه <code>label</code> و <code>name</code> فقط، و<code>_.map</code> كتصاوب منو الـ <code>Field</code> components.<span class="cite"><a href="#n9">[9]</a></span></p>
+</div>
+
+<footer class="lesson-footer">
+  <p class="nav-links">
+    <a href="../reference/0006-redux-form-wizard.html">المرجع 0006</a><span>·</span>
+    <a href="../lessons/0014-sendgrid-mailer.html">الدرس السابق 14</a><span>·</span>
+    <a href="../MISSION.md">المهمة</a>
+  </p>
+  <p class="nav-links" style="font-size:0.8rem;color:var(--ink-faint)">الدرس الجاي: <strong>16 — الـ validation و الـ wizard ديال form</strong> (validation + تصفح بين الصفحات).</p>
+</footer>
+
+<h2 style="font-size:0.95rem">المراجع</h2>
+<ol style="font-size:0.8rem;color:var(--ink-soft)" dir="ltr">
+  <li id="n1"><code>11. Back to the Client!/01. Client Side Survey Creation.vtt</code> — after the back-end route handler, pivot to a client-side survey form</li>
+  <li id="n2"><code>11. Back to the Client!/02. Material Icons.vtt</code> + <code>03. Navigation with the Link Tag.vtt</code> — materialize fixed-action-btn with add icon, Link to /surveys/new</li>
+  <li id="n3"><code>11. Back to the Client!/04. SurveyNew Form.vtt</code> — SurveyNew as container, SurveyForm with one component per field</li>
+  <li id="n4"><code>11. Back to the Client!/05. Purpose of Redux Form.vtt</code> — without redux-form: onChange handlers, action creator, reducer, connect</li>
+  <li id="n5"><code>11. Back to the Client!/06. Important Note about Redux Form Installation.html</code> + <code>07. Redux Form Setup.vtt</code> — install with --legacy-peer-deps, redux-form.com docs</li>
+  <li id="n6"><code>11. Back to the Client!/08. The ReduxForm Helper.vtt</code> + <code>09. Redux Form in Practice.vtt</code> — SurveyForm.js, form/field tags, onSubmit values</li>
+  <li id="n7"><code>11. Back to the Client!/10. Custom Field Components.vtt</code> + <code>11. Wiring up Custom Fields.vtt</code> — component prop, input and meta props</li>
+  <li id="n8"><code>11. Back to the Client!/12. DRY'ing Up Fields.vtt</code> — label passed as prop, one SurveyField reused four times</li>
+  <li id="n9"><code>11. Back to the Client!/13. Fields from Config.vtt</code> (00:24–01:24, 03:12–04:02, 06:36–07:07) — FIELDS constant array, lodash map, key property</li>
+</ol>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

@@ -44,8 +44,21 @@
 
 <h2>2 · قاعدة <code>exact</code> والـ components الدائمين</h2>
 <p>إلا مشيتي لـ <code>/surveys</code> ونتفاجأ: كتشوف <strong>landing + dashboard مع بعضياتهم</strong>! السبب: الـ route ديال <code>/</code> كيقبل بـ <strong>greedy matching</strong> — السلسلة <code>/</code> موجودة داخل <code>/surveys</code>، فـ React Router كيقول موجود ويرسم الـ Landing.<span class="cite"><a href="#n3">[3]</a></span> الحل: prop ديال <strong><code>exact</code></strong> (= <code>exact={true}</code>) اللي كيقول "خاص المسار يطابق بالضبط".<span class="cite"><a href="#n3">[3]</a></span></p>
+<div class="callout analogy">
+  <span class="label">بأي مثال</span>
+  تخيل حارس كيسول غير واش السمية كتبدا بنفس الحرف: أي واحد عندو نفس البداية كيدخلو. هكذا داير <code>Route path="/"</code> بلا <code>exact</code> — أي <code>path</code> كيبدا بـ <code>/</code> كيقبلو. <code>exact</code> كتقول للحارس يقارن العنوان كامل حرف بحرف.
+</div>
 <p>نفس المشكل كيتكرر مع <code>/surveys/new</code>: كيتطابق مع <code>/surveys</code> (موجودة فـ البداية)، فكيتبان الـ dashboard مع الـ SurveyNew — وهادا ماشي اللي بغينا، يعني الـ dashboard زادة خاصها <code>exact</code>.<span class="cite"><a href="#n4">[4]</a></span></p>
+<div class="compare">
+  <div class="col-bad"><span class="tag">بلا exact</span><code>&lt;Route path="/" /&gt;</code> كيقول "أي مسار كيبدا بـ <code>/</code> كافي" — علّاش كيشوف <code>/surveys</code> وكيشعل الـ Landing زادة مع الـ Dashboard.</div>
+  <div class="col-good"><span class="tag">بـ exact</span><code>&lt;Route exact path="/" /&gt;</code> كيقول "غير <code>/</code> بوحدها" — وكل مسار كيرسم غير الـ component ديالو وحده.</div>
+</div>
 <p>و بخصوص <strong>الـ Header</strong>: ماشي هو الطريق — كنحطو component عادي فوق الـ routes كاملين فـ نفس الـ div اللي داخل <code>BrowserRouter</code>، وهكذا <strong>كيبان دائما</strong> فكل صفحة، ومحتواه هو اللي غادي يتبدّل من بعد حسب auth.<span class="cite"><a href="#n4">[4]</a></span></p>
+<div class="stack">
+  <div class="stack-layer"><b>Header</b><span>كيبان دائما فكل صفحة، غير المحتوى ديالو اللي كيتبدل حسب auth</span></div>
+  <div class="stack-layer"><b>Route content</b><span>الجزء اللي كيتبدل: Landing ولا Dashboard ولا SurveyNew حسب path</span></div>
+  <div class="stack-layer"><b>BrowserRouter</b><span>الدماغ اللي كيقرا URL الحالي وكيختار شكون يبان</span></div>
+</div>
 
 <h2>3 · Materialize: من link tag حتى Webpack import</h2>
 <p>الـ Header خرج لملف خاص <code>components/header.js</code> كـ <strong>class component</strong>، ومن بعد درنا install ديال <strong>Materialize CSS</strong> كـ npm module من داخل <code>client/</code> (ماشي بـ link tag و CDN).<span class="cite"><a href="#n5">[5]</a></span></p>
@@ -55,6 +68,10 @@ import 'materialize-css/dist/css/materialize.min.css';</code></pre>
 <p>ثلاث تفاصيل: <strong>خاص extension</strong> (<code>.css</code> ماشي كيف الـ JS اللي كيتخمّم)، <strong>بلا relative path</strong> (webpack كيفهم بلي كنعنيو npm module من <code>node_modules</code>)، و <strong>ما تحتاجش variable</strong> — الـ import بوحدو كافٍ، وخاص restart ديال الـ server.<span class="cite"><a href="#n6">[6]</a></span></p>
 <p>الـ markup ديال الـ navbar جا من <strong>docs ديال Materialize</strong> (navbar component): <code>nav</code> فيه <code>div.nav-wrapper</code>، وداخلو anchor بـ <code>left brand-logo</code> (السمية ديال التطبيق)، وإلى جنبها <code>ul.right</code> فيها <code>li</code> ديال زر الـ login.<span class="cite"><a href="#n7">[7]</a></span> وفـ React: <strong><code>className</code> ماشي <code>class</code></strong>.<span class="cite"><a href="#n7">[7]</a></span></p>
 <p>و ملاحظة خفية بزاف: Materialize كتوقع بلي عندك <strong>root element بـ class <code>container</code></strong> — علّاش كنزيدوه للـ top div ديال <code>App.js</code>، وإلا الـ navbar كيلزق على حافة الشاشة.<span class="cite"><a href="#n8">[8]</a></span></p>
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  الـ navbar كيلزق على حافة الشاشة بلا أي هامش، والـ links مرصوصين مع بعضياتهم. علّاش؟ نسيتي class ديال <code>container</code>. الحل: زيد <code>className="container"</code> على الـ top div ديال <code>App.js</code> باش Materialize يعطيك المقياس ديالو.
+</div>
 
 <h2>4 · current user API: الخطة ديال <code>fetchUser</code></h2>
 <p>الـ header دابا فيه مشاكل تلاتة: الـ logo ماشي clickable، زر الـ login كيبدا وما كيدير والو، والمحتوى ما عادش يتبدل حسب auth.<span class="cite"><a href="#n8">[8]</a></span> والحل كيبدا من عند السيرفر: <strong>عندنا route جاهز <code>GET /api/current_user</code></strong> اللي كيجاوب واش الـ user مسجّل.<span class="cite"><a href="#n9">[9]</a></span></p>

@@ -46,6 +46,10 @@
 ngrok config add-authtoken YOUR_AUTHTOKEN   # مرة وحدة
 ngrok http 5000                             # كل ما تحل الـ dev</code></pre>
 <p><strong>التفصيلة اللي كتقتل:</strong> كل ما تسد وتعاود تشغّل <code>ngrok http 5000</code>، الـ address <strong>تبدل</strong> — وخاصك ترجع تبدّلها فـSendGrid كل مرة.<span class="cite"><a href="#n3">[3]</a></span> غادي نشوفو فين بالضبط.</p>
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  عاود شغّل <code>ngrok</code> وبقيتي على الـ URL القديمة فالـ SendGrid: الخدمة كتبان <strong>Active</strong> ولكن والو ما كيوصل — كل الـ votes ديال داك الفترة ضاعو. الإصلاح: قرا الـ address الجديدة من الـ terminal وبدّلها فـ<code>HTTP POST URL</code> قبل ما تعاود تختبر.
+</div>
 <p>فالـ SendGrid dashboard: <code>Settings</code> &rarr; <code>Mail Settings</code> &rarr; <code>Event Notification</code>:</p>
 <ul>
   <li>تفعّل <strong>Event Notification</strong> وحط فـ<strong>HTTP POST URL</strong>: <code>https://YOUR_TUNNEL_ADDRESS/api/surveys/webhooks</code> — <strong>خاص يكون الـ route كامل</strong>، ماشي غير الـ domain.<span class="cite"><a href="#n4">[4]</a></span></li>
@@ -61,6 +65,13 @@ ngrok http 5000                             # كل ما تحل الـ dev</code>
 <pre><code>/api/surveys/&lt;surveyId&gt;/yes     # الزر الأيمن
 /api/surveys/&lt;surveyId&gt;/no      # الزر الثاني</code></pre>
 <p>يعني <strong>كن encodeو الـ survey id و الـ choice داخل الرابط</strong> اللي الـ user كي clicki عليه، ونبقى على نفس الـ namespace ديال <code>/surveys</code>.<span class="cite"><a href="#n6">[6]</a></span> ملي الـ SendGrid يرجع لينا، الـ <code>url</code> فيها كامل المعلومات وحنا غير نقلبوها.</p>
+<ol class="seq">
+  <li><span class="from">المستعمل</span> <span class="arrow">→</span> <span class="to">الـ email</span> <span class="what">click على الرابط /api/surveys/&lt;surveyId&gt;/yes</span></li>
+  <li><span class="from">الـ email</span> <span class="arrow">→</span> <span class="to">SendGrid</span> <span class="what">click event فيه غير email + url</span></li>
+  <li><span class="from">SendGrid</span> <span class="arrow">→</span> <span class="to">ngrok</span> <span class="what">bulk POST ديال الأحداث كل شي 30 ثانية</span></li>
+  <li><span class="from">ngrok</span> <span class="arrow">→</span> <span class="to">Express</span> <span class="what">tunnel → localhost:5000/api/surveys/webhooks</span></li>
+  <li><span class="from">الـ route</span> <span class="arrow">→</span> <span class="to">path-parser</span> <span class="what">{ email, surveyId, choice } من الـ pathname</span></li>
+</ol>
 <p>ملاحظة صغيرة: إلا clickiti على الزر، غادي توصل لـ<code>Cannot GET</code> حيت الـ route بعد ما تزادت — هادي غادي نصلحوها فالدرس الجاي ديال النتائج، ماشي دابا.<span class="cite"><a href="#n6">[6]</a></span></p>
 
 <h2>4 · pre-processing: الـ pipeline قبل ما نمسسو الـ DB</h2>

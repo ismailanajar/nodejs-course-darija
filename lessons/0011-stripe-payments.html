@@ -33,23 +33,7 @@
   باغي تصاوب form ديالك وتصيفط numbers ديال الـ card نيشان لـ API ديالك؟ غلط كبيرة: الـ numbers كتمشي فأي سيرفر خارج Stripe، ودخلتي فمسؤولية ديال <strong>PCI compliance</strong> كاملة. علّاش كاين token أصلا؟ باش Numbers تبقى غير عند Stripe — صيفط غير <code>token.id</code> لـ <code>stripe.charges.create</code>.
 </div>
 
-<div class="flow">
-  <div class="flow-row">
-    <div class="flow-node">Payments component<small>زر "Add credits"</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">Stripe Checkout<small>token فقط</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">POST /api/stripe<small>body-parser</small></div>
-  </div>
-  <div class="flow-row">
-    <div class="flow-node">stripe.charges.create<small>500 cents</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">req.user.credits += 5<small>save()</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">res.send(user)<small>header يتحدّث</small></div>
-  </div>
-</div>
-<p>فـ React، الـ component كيتصل بـ <code>connect</code> ديال <code>react-redux</code>، وكيستقبل الـ action creator <code>handleToken</code> على <code>this.props</code>. أول ما Stripe يعطيك الـ token، كتديرو <code>this.props.handleToken(token)</code> — وقبل ما نصاوبو الـ handler عند السيرفر، الـ request كترجع <strong>404</strong> حيت ما كاين حتى route.<span class="cite"><a href="#n4">[4]</a></span></p>
+<p>فـ React الـ Payments component مربوط بـ <code>connect</code> ديال <code>react-redux</code> باش يوصل لـ action creator <code>handleToken</code> فـ <code>this.props</code>. ملي Stripe كيرجع الـ token كنديرو <code>this.props.handleToken(token)</code> مباشرة. وإلا جربتي قبل ما تصاوب الـ handler فالسيرفر غادي تشوف <strong>404</strong> حيت ما كاين حتى route كيجاوب على <code>POST /api/stripe</code>. علاش هادي مهمة ملي تخدم لـclient: حيت الـclient كيتيق فيك ملي كتورّيه الـ 404 وكتشرح ليه بلي الـ route باقي ما تصاوبش.<span class="cite"><a href="#n4">[4]</a></span></p>
 
 <h2>2 · الـ keys: publishable مقابل secret</h2>
 <p>عندك جوج مفاتيح: <strong>publishable key</strong> كتديها للـ client (كتبدا بـ <code>pk_</code>)، و<strong>secret key</strong> اللي كتبقى غير عند السيرفر.<span class="cite"><a href="#n3">[3]</a></span> فـ Create React App، الـ env vars خاصهم يتبدلو بـ <code>REACT_APP_</code> باش يقدرو يوصلو للـ client، وكتخزنيهم فـ <code>config/keys</code>.<span class="cite"><a href="#n3">[3]</a></span></p>
@@ -58,8 +42,9 @@
 <p>الـ <code>stripe</code> npm module هو اللي كياخد الـ token وكيمشي بيه لـ Stripe API باش يصاوب الـ charge.<span class="cite"><a href="#n5">[5]</a></span></p>
 <div class="compare">
   <div class="col-good"><span class="tag">publishable key</span><code>pk_...</code> كتمشي للـ client مع <code>Checkout</code> باش تبين form ديال Stripe. إلا تسربات، الخطورة محدودة حيت ما كتقدرش تسحب الفلوس بوحدها.</div>
-  <div class="col-bad"><span class="tag">secret key</span>كتبقى غير فالسيرفر مع <code>stripe.charges.create</code>. إلا خرجات للـ client، أي واحد يقدر يصاوب charges باسمك.</div>
+  <div class="col-bad"><span class="tag">secret key</span> كتبقى غير فالسيرفر مع <code>stripe.charges.create</code> بـ <code>keys.stripeSecretKey</code>. إلا خرجات للـ client، أي واحد يقدر يصاوب charges باسمك.</div>
 </div>
+<p class="mono">كيفاش تقرا هاد المخطط: العمود ديال publishable هو اللي مسموح فـ client والعمود ديال secret هو اللي ممنوع يخرج من السيرفر.</p>
 
 <h2>3 · السيرفر: charge ثم credits</h2>
 <p>الـ route كيتسجل فـ ملف جديد <code>billingRoutes</code> (كيتصاوب كـ function كتاخد الـ app، ومن بعد كيتشعل من <code>index.js</code>) على <code>POST /api/stripe</code>.<span class="cite"><a href="#n4">[4]</a></span><span class="cite"><a href="#n5">[5]</a></span> باش توصل لـ <code>req.body</code> (فين كاين الـ token)، خاصك <strong>body-parser</strong>: <code>npm install --save body-parser</code> و <code>app.use(bodyParser.json())</code>.<span class="cite"><a href="#n6">[6]</a></span></p>
@@ -75,13 +60,14 @@
 
 <ol class="seq">
   <li><span class="from">Client</span> <span class="arrow">→</span> <span class="to">سيرفرنا</span> <span class="what">POST /api/stripe و الـ token داخل JSON body</span></li>
-  <li><span class="from">body-parser</span> <span class="arrow">→</span> <span class="to">handler</span> <span class="what">req.body ملّي بـ id ديال الـ token</span></li>
-  <li><span class="from">requireLogin</span> <span class="arrow">→</span> <span class="to">handler</span> <span class="what">الـ user مسجّل؟ نادي next()</span></li>
-  <li><span class="from">سيرفرنا</span> <span class="arrow">→</span> <span class="to">Stripe</span> <span class="what">stripe.charges.create بـ 500 cents</span></li>
+  <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">billing handler</span> <span class="what"><code>bodyParser.json()</code> كيعمر <code>req.body</code> بـ <code>id</code> ديال الـ token</span></li>
+  <li><span class="from">requireLogin</span> <span class="arrow">→</span> <span class="to">billing handler</span> <span class="what">كيشوف <code>req.user</code> وإلا كاين كينادي <code>next()</code> ويكمل</span></li>
+  <li><span class="from">سيرفرنا</span> <span class="arrow">→</span> <span class="to">Stripe</span> <span class="what"><code>stripe.charges.create</code> بـ <code>amount: 500</code> و <code>source: req.body.id</code></span></li>
   <li><span class="from">Stripe</span> <span class="arrow">→</span> <span class="to">سيرفرنا</span> <span class="what">charge object (ID كيبدا بـ ch_)</span></li>
-  <li><span class="from">handler</span> <span class="arrow">→</span> <span class="to">MongoDB</span> <span class="what">credits += 5 ومن بعد save()</span></li>
+  <li><span class="from">handler</span> <span class="arrow">→</span> <span class="to">MongoDB</span> <span class="what"><code>req.user.credits += 5</code> ومن بعد <code>await save()</code></span></li>
   <li><span class="from">سيرفرنا</span> <span class="arrow">→</span> <span class="to">Client</span> <span class="what">res.send(user) — الـ header كيupdate الرصيد</span></li>
 </ol>
+<p class="mono">كيفاش تقرا هاد المخطط: قرا كل سطر بوحدو من POST حتى res.send باش تشوف فين داز token وفين تزادو credits.</p>
 
 <h2>4 · الحماية: requireLogin كـ route middleware</h2>
 <p>أول نسخة ديال الحماية كانت <code>if (!req.user) return res.status(401)...</code> داخل الـ handler — كتخدم، ولكن كتعاود من كل مرة. الحل: ملف جديد <code>middleware/requireLogin.js</code> كيصدّر arrow function بثلاث arguments: <code>req, res, next</code>.<span class="cite"><a href="#n9">[9]</a></span></p>

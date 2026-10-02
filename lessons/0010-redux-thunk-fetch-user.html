@@ -45,7 +45,7 @@ export const fetchUser = () => async dispatch => {
 
 <h2>2 · <code>fetchUser</code> فـ App: نقطة الدخول</h2>
 <p>واش نناديوها من الـ header؟ هو اللي كيهتم بـ auth أصلا. ولكن حتى هكذا: الـ <strong>App component</strong> هو اللي غادي نمركزو فيه هاد اللوجيك — حيت قريبا غادي يزيدو أماكن خرين كيهتمو واش الـ user مسجّل (routes محمية مثلا)، والـ header ماشي غير هي.<span class="cite"><a href="#n2">[2]</a></span></p>
-<p>و باش نناديوها <strong>مرة وحدة أول ما التطبيق ي boot</strong>، خاصنا lifecycle method — علّاش نبدّلو الـ App من functional component لـ <strong>class component</strong>، ومن بعد نستعملو <strong><code>componentDidMount()</code></strong>: كتندعا أول ما الـ component يتعرض للشاشة.<span class="cite"><a href="#n2">[2]</a></span> علاش ماشي <code>componentWillMount</code>؟ جوج أسباب: (1) فـ إصدارات React الجاية ممكن يتندعا بزاف مرات، و convention كتعتبر <code>componentDidMount</code> المكان المفضل لكل initial Ajax request؛ (2) الفرق ديال التوقيت بيناتهم <strong>شبه معدوم</strong>.<span class="cite"><a href="#n2">[2]</a></span></p>
+<p>باش <code>fetchUser</code> تندعا <strong>مرة وحدة ملي التطبيق كيبدا</strong> خاصنا lifecycle method. علّاش كنردو الـ App <strong>class component</strong> وكنستعملو <strong><code>componentDidMount()</code></strong>؟ حيت كتندعا مباشرة ملي الـ component كيبان فالشاشة.<span class="cite"><a href="#n2">[2]</a></span> وما كنستعملوش <code>componentWillMount</code> حيت فـ React الجديد ممكن يتعاود بزاف ديال المرات، والفرق ديال السرعة بيناتهم <strong>ما كاين حتى فرق</strong>. علاش هادي مهمة ملي تخدم لـclient: حيت الـclient كيبغي الصفحة تبين دغيا واش مسجل ولا لا بلا ما يتسنى.<span class="cite"><a href="#n2">[2]</a></span></p>
 <pre dir="ltr"><code>import { connect } from 'react-redux';
 import * as actions from '../actions';
 
@@ -57,18 +57,19 @@ class App extends Component {
 }
 
 export default connect(null, actions)(App);</code></pre>
-<p>الربط: <code>connect(null, actions)</code> — الـ argument الأولى <code>null</code> حيت هاد الـ component ما محتاج والو من الـ state دابا، والثانية مجموعة الـ action creators (بالـ <code>import * as actions</code> كندوزو كاملين مرة وحدة).<span class="cite"><a href="#n3">[3]</a></span> ومن بعد تestنا: كيشوف الـ request كتمشي والـ action كتوصل للـ reducer.<span class="cite"><a href="#n3">[3]</a></span></p>
+<p>الربط: <code>connect(null, actions)</code> — الـ argument الأولى <code>null</code> حيت هاد الـ component ما محتاج والو من الـ state دابا، والثانية مجموعة الـ action creators (بالـ <code>import * as actions</code> كندوزو كاملين مرة وحدة).<span class="cite"><a href="#n3">[3]</a></span> ومن بعد كنجربو: كنشوفو الـ request كتمشي والـ action كتوصل للـ reducer.<span class="cite"><a href="#n3">[3]</a></span></p>
 
 <div class="cycle">
-  <span class="cyc-node">App component</span><span class="cyc-arrow">→</span>
-  <span class="cyc-node">dispatch(fetchUser)</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">App</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">fetchUser + dispatch</span><span class="cyc-arrow">→</span>
   <span class="cyc-node">Redux Thunk</span><span class="cyc-arrow">→</span>
-  <span class="cyc-node">GET /api/current_user</span><span class="cyc-arrow">→</span>
-  <span class="cyc-node">authReducer</span><span class="cyc-arrow">→</span>
-  <span class="cyc-node">state.auth</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">Express GET /api/current_user</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">authReducer FETCH_USER</span><span class="cyc-arrow">→</span>
+  <span class="cyc-node">store state.auth</span><span class="cyc-arrow">→</span>
   <span class="cyc-node">Header re-render</span>
 </div>
-<div class="cycle-return">رجوع للـ Component بـ props جديدة ومن بعد كيتسنى الجواب من جديد</div>
+<div class="cycle-return">من بعد الـ Header كياخد auth جديدة بـ props وكيعاود render وحدو</div>
+<p class="mono">كيفاش تقرا هاد المخطط: تبع الأسهم من App حتى Header — كل عقدة كتصيفط للجاية حتى كتوصل auth جديدة للشاشة.</p>
 
 <h2>3 · auth reducer: ثلاث قيم + الـ header</h2>
 <p>هنا أدق جزء: واش نرجعو الـ payload مباشرة؟ المشكل: <strong>الطلب ممكن يتبدل ببطء</strong> (3G مثلا) — وإلا اعتبرنا بـ "ما مسجّلش" افتراضيا، الـ header غادي يورّي login button شوية، ومن بعد يتقلب فجأة لـ logout — وهادي هي الظاهرة اللي كنسميوها content jumping، وشكاية كثيرة ديال mobile web.<span class="cite"><a href="#n5">[5]</a></span></p>
@@ -88,12 +89,14 @@ export default function (state = null, action) {
   }
 }</code></pre>
 <ol class="seq">
-  <li><span class="from">App</span> <span class="arrow">→</span> <span class="to">Express</span> <span class="what"><code>componentDidMount</code> كتنادي <code>fetchUser</code> والـ auth باقي <code>null</code></span></li>
+  <li><span class="from">App</span> <span class="arrow">→</span> <span class="to">Redux Thunk</span> <span class="what"><code>componentDidMount</code> كتنادي <code>fetchUser</code> والـ auth باقي <code>null</code></span></li>
+  <li><span class="from">fetchUser</span> <span class="arrow">→</span> <span class="to">Express</span> <span class="what"><code>axios.get</code> لـ <code>/api/current_user</code> كتسول واش مسجل</span></li>
   <li><span class="from">Express</span> <span class="arrow">→</span> <span class="to">authReducer</span> <span class="what">الجواب وصل خاوي والـ reducer كيرجع <code>false</code> بـ <code>payload || false</code></span></li>
-  <li><span class="from">authReducer</span> <span class="arrow">→</span> <span class="to">Header</span> <span class="what"><code>renderContent</code> كتبين زر <code>Login With Google</code></span></li>
+  <li><span class="from">authReducer</span> <span class="arrow">→</span> <span class="to">Header</span> <span class="what"><code>renderContent</code> كتبين زر <code>Login With Google</code> بـ <code>href="/auth/google"</code></span></li>
 </ol>
-<p>و فالـ header: <code>connect</code> + <code>mapStateToProps</code> اللي كتاخد الـ state كامل وترجع غير <code>auth</code> (كنستعملو destructuring: <code>({ auth }) =&gt; ({ auth })</code>).<span class="cite"><a href="#n6">[6]</a></span> ومن بعد helper method سميتها <strong><code>renderContent()</code></strong>: switch على <code>this.props.auth</code> — <code>null</code> &rarr; والو (ما نورّيو حتى حاجة باش ما يتقفزش المحتوى)، <code>false</code> &rarr; زر <strong>Login With Google</strong> بـ <code>href="/auth/google"</code>، والـ default (object) &rarr; زر <strong>Logout</strong>.<span class="cite"><a href="#n7">[7]</a></span><span class="cite"><a href="#n6">[6]</a></span></p>
-<p>و باش تشوف الـ state <code>null</code> بعينك: شغّل <strong>network throttling</strong> فـ Chrome DevTools (Network tab &rarr; dropdown ديال الاتصال) — غادي تشوف نص ثانية "still deciding" قبل ما يقرّر.<span class="cite"><a href="#n7">[7]</a></span></p>
+<p class="mono">كيفاش تقرا هاد المخطط: قرا كل سطر بوحدو — شكون صيفط لمن وشنو Artifact داز بيناتهم.</p>
+<p>و فالـ header: <code>connect</code> + <code>mapStateToProps</code> اللي كتاخد الـ state كامل وترجع غير <code>auth</code> (كنستعملو destructuring: <code>({ auth }) =&gt; ({ auth })</code>).<span class="cite"><a href="#n6">[6]</a></span> ومن بعد helper method سميتها <strong><code>renderContent()</code></strong>: switch على <code>this.props.auth</code> — <code>null</code> → والو (ما نورّيو حتى حاجة باش ما يتقفزش المحتوى)، <code>false</code> → زر <strong>Login With Google</strong> بـ <code>href="/auth/google"</code>، والـ default (object) → زر <strong>Logout</strong>.<span class="cite"><a href="#n7">[7]</a></span><span class="cite"><a href="#n6">[6]</a></span></p>
+<p>و باش تشوف الـ state <code>null</code> بعينك: شغّل <strong>network throttling</strong> فـ Chrome DevTools (Network tab → dropdown ديال الاتصال) — غادي تشوف نص ثانية "still deciding" قبل ما يقرّر.<span class="cite"><a href="#n7">[7]</a></span></p>
 
 <h2>4 · redirects: login، logout، والـ logo</h2>
 <p><strong>بعد login:</strong> كتمشي لـ OAuth flow وترجع لـ <code>/auth/google/callback</code> — ولكن كطلعت error! السبب: <code>passport.authenticate</code> middleware كتخدم و كتسالي، وماعندناش <strong>route handler من بعد</strong>، فـ Express كيقول "ما عندي ما ندير". الحل: نزيدو handler ثانٍ:<span class="cite"><a href="#n8">[8]</a></span></p>
@@ -104,7 +107,7 @@ router.get(
   (req, res) => res.redirect('/surveys')
 );</code></pre>
 <p><strong>بعد logout:</strong> جوج طرق ممكنين: Ajax request (أسرع، ولكن خاص action creator + reducer update + redirect يدويا) ولا <strong>anchor عادي بـ <code>href="/api/logout"</code></strong> (full browser request — الأبسط بزاف، والكورس اختارها: ملي الـ user بغا يخرج، ما عادش عندنا معاه شغل).<span class="cite"><a href="#n9">[9]</a></span> والسيرفر تبدّل هو زادة: ما عادش كيرجع user model، بدل <code>res.redirect('/')</code> باش الـ user يرجع للـ landing.<span class="cite"><a href="#n9">[9]</a></span></p>
-<p><strong>اللمسة الأخيرة:</strong> الـ Landing component خرج من dummy لـ <code>components/Landing.js</code> (functional component بـ <code>h1</code> + نص ديال marketing + <code>style={{ textAlign: 'center' }}</code> — جوج curly braces: وحدة للـ JavaScript ووحدة للـ object).<span class="cite"><a href="#n10">[10]</a></span> و الـ logo فـ الـ header: الـ anchor كيصلح للـ external (بحال OAuth)، أما التصفح الداخلي فخاصو <strong><code>&lt;Link&gt;</code></strong> ديال React Router — و Destination ديالو كيتبدّل: <code>to={this.props.auth ? '/surveys' : '/'}</code> (مسجّل &rarr; dashboard، وإلا &rarr; landing).<span class="cite"><a href="#n11">[11]</a></span></p>
+<p><strong>اللمسة الأخيرة:</strong> الـ Landing component خرج من dummy لـ <code>components/Landing.js</code> (functional component بـ <code>h1</code> + نص ديال marketing + <code>style={{ textAlign: 'center' }}</code> — جوج curly braces: وحدة للـ JavaScript ووحدة للـ object).<span class="cite"><a href="#n10">[10]</a></span> و الـ logo فـ الـ header: الـ anchor كيصلح للـ external (بحال OAuth)، أما التصفح الداخلي فخاصو <strong><code>&lt;Link&gt;</code></strong> ديال React Router — و Destination ديالو كيتبدّل: <code>to={this.props.auth ? '/surveys' : '/'}</code> (مسجّل → dashboard، وإلا → landing).<span class="cite"><a href="#n11">[11]</a></span></p>
 <pre dir="ltr"><code>import { Link } from 'react-router-dom';
 
 &lt;Link to={this.props.auth ? '/surveys' : '/'} className="brand-logo"&gt;

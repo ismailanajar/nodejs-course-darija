@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference 2 — OAuth + Auth + Mongoose Flow</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="kicker">Reference · 0002 · Cheatsheet</p>
+  <h1>OAuth + Auth + Mongoose Flow</h1>
+  <p class="dek">الـ authentication كامل فورقة واحدة — من زر Google حتى <code>req.user</code> و<code>logout</code>.</p>
+  <p class="meta">Compressed from course sections 03–04 · Print this page</p>
+</header>
+
+<h2>الـ OAuth Flow بالتفصيل</h2>
+<ol>
+  <li>الـ user كيحل <code>/auth/google</code> &rarr; السيرفر كيبعثو لـ Google.<span class="cite"><a href="#src1">[1]</a></span></li>
+  <li>الـ user كيختار حسابو ويسمح للتطبيق &rarr; Google كيرجّعو لـ <code>callbackURL</code> ديالنا (<code>/auth/google/callback</code>) وفيه <strong>code</strong> فالـ query string.<span class="cite"><a href="#src2">[2]</a></span></li>
+  <li>إلا ما سجلتيش نفس الرابط عند Google: <strong>Redirect URI Mismatch</strong>.<span class="cite"><a href="#src3">[3]</a></span></li>
+  <li>الـ strategy كيشوف الـ code وكيدوز <strong>request تاني</strong> لـ Google باش يبدلو بـ profile (+ access token).<span class="cite"><a href="#src4">[4]</a></span></li>
+  <li>الـ arrow callback (الـ argument الثاني ديال الـ strategy) كتنادي — فيها <code>accessToken</code>, <code>refreshToken</code>, <code>profile</code>.<span class="cite"><a href="#src5">[5]</a></span></li>
+  <li>الـ profile عندو <strong>Google user ID</strong> فريد &rarr; ن.query بيه فـ <code>users</code>، إلا لقينا نستعملوه، وإلا <code>new User().save()</code>.<span class="cite"><a href="#src6">[6]</a></span><span class="cite"><a href="#src7">[7]</a></span></li>
+  <li>فالأخير: <code>done(null, existingUser || newUser)</code> &rarr; Passport كيكمل الباقي.<span class="cite"><a href="#src8">[8]</a></span></li>
+</ol>
+
+<h2>Passport Setup — Essentials</h2>
+<table dir="ltr">
+  <tr><th>Thing</th><th>What it is</th></tr>
+  <tr><td><code>npm install --save passport</code></td><td>Base library — generic helpers for Express.<span class="cite"><a href="#src9">[9]</a></span></td></tr>
+  <tr><td><code>passport-google-oauth20</code></td><td>The Google strategy package (note the <strong>20</strong>).<span class="cite"><a href="#src9">[9]</a></span></td></tr>
+  <tr><td><code>clientId</code></td><td>Options key with a <strong>capital D</strong> — triple-check it.<span class="cite"><a href="#src10">[10]</a></span></td></tr>
+  <tr><td><code>clientSecret</code></td><td>Must never leak; <code>clientID</code> itself is a public token.<span class="cite"><a href="#src11">[11]</a></span></td></tr>
+  <tr><td><code>callbackURL</code></td><td>Route Google sends the user back to after granting permission.<span class="cite"><a href="#src10">[10]</a></span></td></tr>
+  <tr><td><code>config/keys.js</code></td><td>Keys live here, prefixed <code>Google…</code> so Facebook/LinkedIn can be added later.<span class="cite"><a href="#src10">[10]</a></span></td></tr>
+  <tr><td>args order</td><td>1st = options object, 2nd = arrow callback.<span class="cite"><a href="#src12">[12]</a></span></td></tr>
+  <tr><td><code>nodemon</code></td><td>Auto-restarts the server on file changes (no Ctrl+C + <code>node index.js</code>).<span class="cite"><a href="#src13">[13]</a></span></td></tr>
+</table>
+
+<h2>User Model Pipeline</h2>
+<div class="flow">
+  <div class="flow-row">
+    <div class="flow-node">OAuth callback<small>profile</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">User.findOne<small>by googleId</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">found?<small>use it</small></div>
+    <div class="flow-arrow">/</div>
+    <div class="flow-node">null<small>new User().save()</small></div>
+  </div>
+  <div class="flow-row">
+    <div class="flow-node">done(user)<small>to passport</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">serializeUser<small>done(null, user.id)</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">cookie<small>token</small></div>
+  </div>
+  <div class="flow-row">
+    <div class="flow-node">next request<small>browser sends cookie</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">cookie-session<small>extracts + decrypts</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">deserializeUser<small>id &rarr; user model</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-node">req.user<small>route handler</small></div>
+  </div>
+</div>
+<ul>
+  <li>الـ query asynchronous &rarr; promise &rarr; <code>.then(existingUser =&gt; ...)</code> — الـ قيمة يا instance يا <code>null</code>.<span class="cite"><a href="#src8">[8]</a></span></li>
+  <li>بلا query، كل دخول كيزيد record جديد بنفس الـ Google ID.<span class="cite"><a href="#src7">[7]</a></span></li>
+  <li><code>serializeUser</code> كتنادي أوتوماتيكياً بالـ user model وكترجع <code>user.id</code>، وPassport كيحطها فالـ cookie.<span class="cite"><a href="#src14">[14]</a></span></li>
+  <li><code>user.id</code> = shortcut ديال <code>_id</code> ديال Mongo (<strong>ماشي</strong> profile ID) — حيت ممكن Facebook/LinkedIn وما عندوش Google ID.<span class="cite"><a href="#src14">[14]</a></span></li>
+  <li><code>deserializeUser</code> كتاخد الـ token من الـ cookie وكترجّع user model — راجع الإملاء، typo كيسبب "is not a function".<span class="cite"><a href="#src15">[15]</a></span></li>
+  <li>Express ما عندها cookie support out of the box &rarr; <code>npm install --save cookie-session</code> وتنظمو فـ <code>index.js</code>.<span class="cite"><a href="#src16">[16]</a></span></li>
+  <li>النتيجة النهائية: <code>req.user</code> فوق الـ request قبل ما يوصل للـ route handler — جربها مع <code>GET /api/current_user</code>.<span class="cite"><a href="#src17">[17]</a></span></li>
+</ul>
+
+<h2>profile ID مقابل user id</h2>
+<table dir="ltr">
+  <tr><th>Token</th><th>Produced by</th><th>Used for</th></tr>
+  <tr><td>profile ID</td><td>Google OAuth</td><td>Identify the user <em>during</em> sign-in (the DB query).<span class="cite"><a href="#src14">[14]</a></span></td></tr>
+  <tr><td><code>user.id</code></td><td>MongoDB (<code>_id</code>)</td><td>Identify the user in the cookie on every later request.<span class="cite"><a href="#src14">[14]</a></span></td></tr>
+</table>
+
+<h2>Logout</h2>
+<ul>
+  <li>Route: <code>GET /api/logout</code> فـ <code>authRoutes</code>.<span class="cite"><a href="#src18">[18]</a></span></li>
+  <li><code>req</code> = request، <code>res</code> = response؛ Passport هو اللي كيزيد <code>req.user</code> ودوال خرين.<span class="cite"><a href="#src18">[18]</a></span></li>
+  <li><code>req.logout()</code> — كتاخد الـ ID اللي فالـ cookie وكتقتلو.<span class="cite"><a href="#src18">[18]</a></span></li>
+</ul>
+
+<h2 id="sources">Sources</h2>
+<ol style="font-size:0.85rem">
+  <li id="src1">Course lecture 03 · <em>Testing OAuth</em> (00:33–00:58) — <code>03. Authentication with Google OAuth/09. Testing OAuth.vtt</code></li>
+  <li id="src2">Course lecture 03 · <em>OAuth Callbacks</em> (00:46–00:52) — <code>03. Authentication with Google OAuth/11. OAuth Callbacks.vtt</code></li>
+  <li id="src3">Course lecture 03 · <em>Authorized Redirect URI's</em> (00:00–00:43) — <code>03. Authentication with Google OAuth/10. Authorized Redirect URI's.vtt</code></li>
+  <li id="src4">Course lecture 03 · <em>Access and Refresh Tokens</em> (00:39–00:51) — <code>03. Authentication with Google OAuth/12. Access and Refresh Tokens.vtt</code></li>
+  <li id="src5">Course lecture 04 · <em>Saving Model Instances</em> (00:27–00:55) — <code>04. Adding MongoDB/10. Saving Model Instances.vtt</code></li>
+  <li id="src6">Course lecture 04 · <em>Mongoose Queries</em> (00:58–01:18) — <code>04. Adding MongoDB/12. Mongoose Queries.vtt</code></li>
+  <li id="src7">Course lecture 04 · <em>Mongoose Queries</em> (00:09–00:44) — <code>04. Adding MongoDB/12. Mongoose Queries.vtt</code></li>
+  <li id="src8">Course lecture 04 · <em>Passport Callbacks</em> (00:15–01:06) — <code>04. Adding MongoDB/13. Passport Callbacks.vtt</code></li>
+  <li id="src9">Course lecture 03 · <em>Passport Setup</em> (00:41–01:07) — <code>03. Authentication with Google OAuth/04. Passport Setup.vtt</code></li>
+  <li id="src10">Course lecture 03 · <em>Google Strategy Options</em> (00:00–01:02, 05:39–05:53) — <code>03. Authentication with Google OAuth/08. Google Strategy Options.vtt</code></li>
+  <li id="src11">Course lecture 03 · <em>Securing API Keys</em> (00:33–01:00) — <code>03. Authentication with Google OAuth/07. Securing API Keys.vtt</code></li>
+  <li id="src12">Course lecture 03 · <em>Testing OAuth</em> (00:00–00:17) — <code>03. Authentication with Google OAuth/09. Testing OAuth.vtt</code></li>
+  <li id="src13">Course lecture 03 · <em>Nodemon Setup</em> (00:12–00:52) — <code>03. Authentication with Google OAuth/13. Nodemon Setup.vtt</code></li>
+  <li id="src14">Course lecture 04 · <em>Encoding Users</em> (04:48–05:20, 09:50–12:46) — <code>04. Adding MongoDB/14. Encoding Users.vtt</code></li>
+  <li id="src15">Course lecture 04 · <em>Deserialize User</em> (00:08–00:52) — <code>04. Adding MongoDB/15. Deserialize User.vtt</code></li>
+  <li id="src16">Course lecture 04 · <em>Enabling Cookies</em> (00:38–01:28) — <code>04. Adding MongoDB/16. Enabling Cookies.vtt</code></li>
+  <li id="src17">Course lecture 04 · <em>Testing Authentication</em> (00:39–03:41) — <code>04. Adding MongoDB/17. Testing Authentication.vtt</code></li>
+  <li id="src18">Course lecture 04 · <em>Logging Out Users</em> (00:18–01:37) — <code>04. Adding MongoDB/18. Logging Out Users.vtt</code></li>
+</ol>
+
+<p class="nav-links"><a href="../lessons/0003-google-oauth-passport.html">الدرس 3</a><span>·</span><a href="../lessons/0004-mongo-mongoose-models.html">الدرس 4</a><span>·</span><a href="../lessons/0005-passport-session-cookies.html">الدرس 5</a><span>·</span><a href="../MISSION.md">المهمة</a></p>
+
+</main>
+</body>
+</html>

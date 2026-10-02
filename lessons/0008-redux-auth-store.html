@@ -38,6 +38,18 @@
 <p>التقسيم عندنا واضح: <code>src/index.js</code> = <strong>Redux setup</strong> (الداتا)، و <code>App.js</code> = <strong>React Router setup</strong> (الـ view layer).<span class="cite"><a href="#n6">[6]</a></span> وثبّتنا <code>react-redux</code> — هي المكتبة اللي كتخلي Redux والـ React يخدمو مع بعضياتهم.<span class="cite"><a href="#n6">[6]</a></span></p>
 <p>الخطة ديال الـ state عندنا: <strong> reducers جوج</strong> — واحد <code>auth</code> (واش الـ user مسجّل؟) و واحد <code>surveys</code> (ليست ديال surveys اللي صاوبهم) — الـ surveys غادي يجي من بعد، ملي نكملو الـ backend ديالهم.<span class="cite"><a href="#n6">[6]</a></span></p>
 <p>مراجعة سريعة ديال الـ flow: component كينادي action creator &rarr; كيرجع action &rarr; الـ action كيتصاوب لكل reducers &rarr; <code>combineReducers</code> كيحدث state فـ store &rarr; الـ state الجديد كيرجع للـ components وكيسبّب re-render.<span class="cite"><a href="#n6">[6]</a></span></p>
+<div class="cycle">
+  <span class="cyc-node">Component</span>
+  <span class="cyc-arrow">→</span>
+  <span class="cyc-node">dispatch(action)</span>
+  <span class="cyc-arrow">→</span>
+  <span class="cyc-node">reducer</span>
+  <span class="cyc-arrow">→</span>
+  <span class="cyc-node">store: state جديد</span>
+  <span class="cyc-arrow">→</span>
+  <span class="cyc-node">re-render</span>
+</div>
+<div class="cycle-return">رجوع للـ Component بالمحتوى الجديد — ومن بعد كيتكرر نفس الدوران مع أول action جاي</div>
 <p>و التطبيق فـ <code>index.js</code>: صاوب الـ store، ومن بعد حط <strong><code>&lt;Provider&gt;</code></strong> — component جا من <code>react-redux</code>، وهو الـ "glue" اللي بين الجيهتين: كيلبّس <code>App</code> وكيدوز ليه الـ store.<span class="cite"><a href="#n6">[6]</a></span></p>
 <pre dir="ltr"><code>&lt;Provider store={store}&gt;
   &lt;App /&gt;
@@ -65,6 +77,10 @@ import authReducer from './authReducer';
 
 export default combineReducers({ auth: authReducer });</code></pre>
 <p>القاعدة الذهبية هنا: <strong>الـ keys اللي تعطيهم لـ <code>combineReducers</code> هما الـ keys اللي غادي يخرجو فـ state object</strong> — علّاش سميناه <code>auth</code> حيت <code>state.auth</code> هو اللي غادي يكون.<span class="cite"><a href="#n8">[8]</a></span> وآخر خطوة: <code>import reducers from './reducers'</code> فـ <code>src/index.js</code> وعطيهم كأول argument ديال <code>createStore</code>.<span class="cite"><a href="#n8">[8]</a></span></p>
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  كتقرا <code>state.auth</code> وتلقّى <code>undefined</code> والـ header كيبقى خاوي — حيت الـ state كيبدا خاوي قبل ما أي action يوصل، وإلا ما عطيتيش initial value، الـ reducer كيرجّع <code>undefined</code> فـ هاد الـ case. الحل: أعطي القيمة الافتراضية فالتوقيع <code>function (state = {}, action)</code>، ومن بعد تبديلها ملي تجي types حقيقية.<span class="cite"><a href="#n7">[7]</a></span>
+</div>
 
 <h2>4 · علاش auth state مهم</h2>
 <p>واش مستاهل نهدرو على reducer صغير بحال هادا؟ الجواب: حيت <strong>أول حاجة كتبان للuser هي الـ header</strong>، ومحتواه كيتبدّل حسب الـ auth: ملي ما مسجّلش — زر sign in with Google؛ ملي مسجّل — كيتحيد ويبان بدلو logout و أزرار الـ credits.<span class="cite"><a href="#n9">[9]</a></span></p>

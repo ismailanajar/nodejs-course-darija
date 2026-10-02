@@ -50,19 +50,21 @@
 </div>
 <p>نفس المشكل كيتكرر مع <code>/surveys/new</code>: كيتطابق مع <code>/surveys</code> (موجودة فـ البداية)، فكيتبان الـ dashboard مع الـ SurveyNew — وهادا ماشي اللي بغينا، يعني الـ dashboard زادة خاصها <code>exact</code>.<span class="cite"><a href="#n4">[4]</a></span></p>
 <div class="compare">
-  <div class="col-bad"><span class="tag">بلا exact</span><code>&lt;Route path="/" /&gt;</code> كيقول "أي مسار كيبدا بـ <code>/</code> كافي" — علّاش كيشوف <code>/surveys</code> وكيشعل الـ Landing زادة مع الـ Dashboard.</div>
-  <div class="col-good"><span class="tag">بـ exact</span><code>&lt;Route exact path="/" /&gt;</code> كيقول "غير <code>/</code> بوحدها" — وكل مسار كيرسم غير الـ component ديالو وحده.</div>
+  <div class="col-bad"><span class="tag">بلا exact</span><code>&lt;Route path="/" /&gt;</code> كيقول "أي مسار كيبدا بـ <code>/</code> كافي" — علّاش فـ <code>/surveys</code> كيبان الـ Landing مع الـ Dashboard بجوج.</div>
+  <div class="col-good"><span class="tag">بـ exact</span><code>&lt;Route exact path="/" /&gt;</code> كيقول "غير <code>/</code> بوحدها" — فـ <code>/surveys</code> كتبان غير الـ Dashboard وحدها.</div>
 </div>
+<p class="mono">كيفاش تقرا هاد المخطط: قارن العمودين على نفس المسار /surveys باش تشوف الفرق بين بلا exact وبـ exact.</p>
 <p>و بخصوص <strong>الـ Header</strong>: ماشي هو الطريق — كنحطو component عادي فوق الـ routes كاملين فـ نفس الـ div اللي داخل <code>BrowserRouter</code>، وهكذا <strong>كيبان دائما</strong> فكل صفحة، ومحتواه هو اللي غادي يتبدّل من بعد حسب auth.<span class="cite"><a href="#n4">[4]</a></span></p>
 <div class="stack">
-  <div class="stack-layer"><b>Header</b><span>كيبان دائما فكل صفحة، غير المحتوى ديالو اللي كيتبدل حسب auth</span></div>
-  <div class="stack-layer"><b>Route content</b><span>الجزء اللي كيتبدل: Landing ولا Dashboard ولا SurveyNew حسب path</span></div>
-  <div class="stack-layer"><b>BrowserRouter</b><span>الدماغ اللي كيقرا URL الحالي وكيختار شكون يبان</span></div>
+  <div class="stack-layer"><b>Header</b><span>component فوق routes كيبان دائما، غير المحتوى ديالو اللي كيتبدل حسب auth</span></div>
+  <div class="stack-layer"><b>Route content</b><span>غير وحدة كتبان: Landing فـ <code>/</code> ولا Dashboard فـ <code>/surveys</code> ولا SurveyNew فـ <code>/surveys/new</code></span></div>
+  <div class="stack-layer"><b>BrowserRouter</b><span>كيقرا URL الحالي وكيختار شكون يترسم من الفوق</span></div>
 </div>
+<p class="mono">كيفاش تقرا هاد المخطط: قرا من التحت للفوق — BrowserRouter كيقرا URL عاد كيبان Header الدائم والـ Route وحدة اللي طابقات.</p>
 
 <h2>3 · Materialize: من link tag حتى Webpack import</h2>
 <p>الـ Header خرج لملف خاص <code>components/header.js</code> كـ <strong>class component</strong>، ومن بعد درنا install ديال <strong>Materialize CSS</strong> كـ npm module من داخل <code>client/</code> (ماشي بـ link tag و CDN).<span class="cite"><a href="#n5">[5]</a></span></p>
-<p>كيفاش كنوصلو للـ CSS ديال module؟ <strong>Webpack</strong> — اللي جا معا <code>create-react-app</code> كـ module loader: كيجمع ملفات وحدة وحدة لخرج ملفات output، وكيعرف حتى يتعامل مع CSS: ملي كتشوف import ديال ملف CSS، كيتعامل معاه CSS ماشي JavaScript.<span class="cite"><a href="#n6">[6]</a></span></p>
+<p>السؤال هو كيفاش الـ CSS ديال module كيوصل للصفحة؟ الجواب هو <strong>Webpack</strong> اللي جاي مع <code>create-react-app</code>: هو اللي كيجمع الملفات كاملين وكيخرج النسخة النهائية. ملي كيلقى <code>import</code> ديال ملف <code>CSS</code> كيفهم بلي هادا style ماشي <code>JavaScript</code> وكيزيدو للصفحة. علاش هادي مهمة ملي تخدم لـclient: حيت الـclient كيخلص على design نقي خدام بلا ما تزيد حتى dependency خارجية من عندك.<span class="cite"><a href="#n6">[6]</a></span></p>
 <pre dir="ltr"><code>// src/index.js — فـ أعلى الملف
 import 'materialize-css/dist/css/materialize.min.css';</code></pre>
 <p>ثلاث تفاصيل: <strong>خاص extension</strong> (<code>.css</code> ماشي كيف الـ JS اللي كيتخمّم)، <strong>بلا relative path</strong> (webpack كيفهم بلي كنعنيو npm module من <code>node_modules</code>)، و <strong>ما تحتاجش variable</strong> — الـ import بوحدو كافٍ، وخاص restart ديال الـ server.<span class="cite"><a href="#n6">[6]</a></span></p>
@@ -76,17 +78,6 @@ import 'materialize-css/dist/css/materialize.min.css';</code></pre>
 <h2>4 · current user API: الخطة ديال <code>fetchUser</code></h2>
 <p>الـ header دابا فيه مشاكل تلاتة: الـ logo ماشي clickable، زر الـ login كيبدا وما كيدير والو، والمحتوى ما عادش يتبدل حسب auth.<span class="cite"><a href="#n8">[8]</a></span> والحل كيبدا من عند السيرفر: <strong>عندنا route جاهز <code>GET /api/current_user</code></strong> اللي كيجاوب واش الـ user مسجّل.<span class="cite"><a href="#n9">[9]</a></span></p>
 <p>الخطة كاملة (غادي نبنيوها فالدرس الجاي خطوة بخطوة): <strong>App component</strong> — اللي هو الـ route component — كينادي action creator <code>fetchUser</code> أول ما يboot؛ داخلها <strong>axios</strong> كتصاوب Ajax request لـ <code>/api/current_user</code>؛ ومن بعد <strong>Redux Thunk</strong> كيسيّر الـ dispatch ديال الـ action للم reducer كاملين؛ الـ <code>authReducer</code> كيحدث state؛ ومن بعد الـ header كيتصل بالـ store ويتبدّل محتواه.<span class="cite"><a href="#n9">[9]</a></span></p>
-<div class="flow">
-  <div class="flow-row">
-    <div class="flow-node">App (on boot)<small>fetchUser()</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">axios<small>GET /api/current_user</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">thunk &rarr; reducer<small>state.auth</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-node">Header<small>connect + re-render</small></div>
-  </div>
-</div>
 <p>و عمليا، غادي نحتاجو: نثبتو <code>axios</code> و <code>redux-thunk</code> من داخل <code>client/</code>، ونزيدو <strong>proxy rule ثانية</strong> باش <code>/api/*</code> (و <code>/auth/google</code>) يتوجهو للـ Express على <code>localhost:5000</code>.<span class="cite"><a href="#n9">[9]</a></span></p>
 
 <h2>5 · ممارسة retrieval</h2>

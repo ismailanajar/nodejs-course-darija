@@ -23,6 +23,10 @@
 
 <h2>1 · المشكلة: شكون كيقدم الـ HTML؟</h2>
 <p>فـ development، الـ Create React App كيخدم بـ <strong>dev server</strong> قدام الـ Express: هو اللي كيرجع الـ HTML والـ JS، والـ Express غير كيقدم الـ API. ولكن فـ production، ما كاين حتى <strong>سيرفر واحد</strong>: السيرفر ديالنا — وأول deployiyين فالكورس كانو كيقدرو غير الـ Express، الـ React app ما كانتش داخلة.<span class="cite"><a href="#n1">[1]</a></span></p>
+<div class="compare">
+  <div><span class="tag">development</span>جوج سيرفرات: <code>CRA dev server</code> كيرجع <code>HTML</code> و <code>JS</code>، و <code>Express</code> غير كيجاوب على <code>API</code>.</div>
+  <div><span class="tag">production</span>سيرفر واحد: <code>Express</code> بوحدو كيرجع <code>API</code> والملفات ديال <code>client/build</code> وحتى <code>index.html</code> للـ catch-all.</div>
+</div>
 <p>يعني التحدي هو: كيفاش نفس الـ <code>index.js</code> يجاوب على جوج أنواع ديال requests؟</p>
 <div class="flow">
   <div class="flow-row">
@@ -51,10 +55,26 @@
   <li>الثاني هو الـ <strong>catch-all</strong>: إلا ما لقاش حتى route handler وما لقاش حتى ملف، كيعطيك <code>index.html</code> وكيخلّي <strong>React router</strong> هو اللي يفهم الـ path.<span class="cite"><a href="#n2">[2]</a></span></li>
   <li><strong>الترتيب هو القانون</strong>: Express كيبدا من الفوق — API routes &rarr; الملفات ديال <code>client/build</code> &rarr; فالأخير الـ catch-all.<span class="cite"><a href="#n2">[2]</a></span></li>
 </ul>
+<div class="callout analogy">
+  <span class="label">بأي مثال</span>
+  الـ catch-all بحال موظف الاستقبال اللي كيبقى فالأخير: إلا حتى واحد ما عرف الملف المطلوب ولا الـ route ديال <code>API</code>، هو كيعطي <code>index.html</code> وكيخلي <code>React Router</code> هو اللي يفهم شنو يبين.
+</div>
+
+<div class="callout pitfall">
+  <span class="label">نتيجة كتجي غلط</span>
+  دفعتي الـ app وكتعمل refresh على <code>/surveys</code> فـ production وكتشوف <strong>404 Cannot GET</strong>: السيرفر ما لقاش ملف اسمو <code>build/surveys</code> وما عندوش catch-all. الحل: بعد <code>express.static</code> زيد <code>app.get('*', ...)</code> اللي كيرجع <code>index.html</code>، وحطّها فالأخير من بعد الـ API routes.
+</div>
 
 <h2>3 · الـ build step والـ deploy</h2>
 <p>الـ <code>client/build</code> ماشي موجود بالسحر: كيتصاوب بـ <code>npm run build</code> من داخل مجلد <code>client</code>، وكيخلي bundle واحد ديال JS + CSS. <strong>كل تبديل فـ <code>src</code> خاصو يتبعو build جديد</strong> قبل ما تدفع.<span class="cite"><a href="#n3">[3]</a></span></p>
 <p>المسار ديال الـ deploy اللي اختارو فالكورس: commit &rarr; push &rarr; الـ platform كتنصب الـ dependencies ديال السيرفر &rarr; من بعد كتصاوب <strong>client build</strong> (اختارو "option number two" اللي كتزيد الـ build step فالـ deploy نفسها).<span class="cite"><a href="#n4">[4]</a></span></p>
+<ol class="steps">
+  <li><b>commit و push</b>التبدالات ديال <code>src</code> كتمشي لـ GitHub.</li>
+  <li><b>تنصيب deps ديال السيرفر</b>الـ platform كنصب الـ dependencies ديال الجذر أول حاجة.</li>
+  <li><b>build ديال الـ client</b><code>heroku-postbuild</code> كيدخل لـ <code>client</code>، كنصب deps ديالو، ومن بعد <code>npm run build</code> كيصاوب <code>client/build</code>.</li>
+  <li><b>start ديال الـ server</b>Express كيبدا وكيقدم الـ API والـ static والـ catch-all كلشي من سيرفر واحد.</li>
+</ol>
+
 <pre dir="ltr"><code>"heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix client &amp;&amp; npm run build --prefix client"</code></pre>
 <p>فـ Render (البديل اللي كيتحط فـ ملاحظات الكورس)، كتبدّل الـ Build Command من <code>npm install</code> إلى <code>npm install &amp;&amp; npm run heroku-postbuild</code> — نفس الفكرة: <strong>الـ server deps قبل، الـ client build من بعد</strong>.<span class="cite"><a href="#n5">[5]</a></span></p>
 <p>وإلا طاح الـ build بـ أخطاء ديال versions (مثلاً <code>SyntaxError: Unexpected token</code> من <code>@hapi</code>): المشكل هو <strong>Node version mismatch</strong> بين جوج machines — الحل: حيّد <code>package-lock.json</code> (client + server)، استعمل LTS version ديال Node، وطابق <code>engines</code> فـ <code>package.json</code>.<span class="cite"><a href="#n6">[6]</a></span></p>
